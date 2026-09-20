@@ -1,0 +1,485 @@
+{
+  "name": "RC Hand-Launch Gliders (NDC format)",
+  "faiDesignation": "F3K",
+  "version": "NZMAA Section 5 Soaring, March 2024",
+  "parameters": [
+    {
+      "name": "workingTime.B",
+      "kind": "Number",
+      "unit": "s",
+      "defaultValue": {
+        "kind": "Number",
+        "number": 600
+      },
+      "allowedValues": [
+        {
+          "kind": "Number",
+          "number": 420
+        },
+        {
+          "kind": "Number",
+          "number": 600
+        }
+      ],
+      "boundAt": "PerRound"
+    },
+    {
+      "name": "maxFlight.B",
+      "kind": "Number",
+      "unit": "s",
+      "defaultValue": {
+        "kind": "Number",
+        "number": 240
+      },
+      "allowedValues": [
+        {
+          "kind": "Number",
+          "number": 180
+        },
+        {
+          "kind": "Number",
+          "number": 240
+        }
+      ],
+      "boundAt": "PerRound"
+    }
+  ],
+  "reflight": {
+    "entitledScores": "Replacement",
+    "othersScore": "BetterOf",
+    "minNewGroupSize": 4
+  },
+  "penalties": [
+    {
+      "infractionType": "unsignedScoreCard",
+      "exclusionGroups": [],
+      "accrual": "OncePerAttempt",
+      "effects": [
+        {
+          "effect": "ZeroRound"
+        }
+      ]
+    },
+    {
+      "infractionType": "flewOutsideTestingWindow",
+      "exclusionGroups": [],
+      "accrual": "OncePerAttempt",
+      "effects": [
+        {
+          "effect": "DeductPoints",
+          "points": 100
+        }
+      ]
+    },
+    {
+      "infractionType": "safetyAreaObjectContact",
+      "exclusionGroups": [
+        "safetyInfraction"
+      ],
+      "accrual": "OncePerAttempt",
+      "effects": [
+        {
+          "effect": "DeductPoints",
+          "points": 100
+        }
+      ]
+    },
+    {
+      "infractionType": "safetyAreaPersonContact",
+      "exclusionGroups": [
+        "safetyInfraction"
+      ],
+      "accrual": "OncePerAttempt",
+      "effects": [
+        {
+          "effect": "DeductPoints",
+          "points": 300
+        }
+      ]
+    },
+    {
+      "infractionType": "personContactOutsideSafetyArea",
+      "exclusionGroups": [
+        "safetyInfraction"
+      ],
+      "accrual": "OncePerAttempt",
+      "effects": [
+        {
+          "effect": "DeductPoints",
+          "points": 100
+        }
+      ]
+    },
+    {
+      "infractionType": "landedInSafetyArea",
+      "exclusionGroups": [
+        "safetyInfraction"
+      ],
+      "accrual": "OncePerAttempt",
+      "effects": [
+        {
+          "effect": "DeductPoints",
+          "points": 100
+        }
+      ]
+    },
+    {
+      "infractionType": "personContactAtLaunch",
+      "exclusionGroups": [],
+      "accrual": "OncePerAttempt",
+      "effects": [
+        {
+          "effect": "ZeroRound"
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "ordinal": 1,
+      "type": "Preliminary",
+      "rounds": {
+        "kind": "ChooseFromCatalogue",
+        "tasksPerRound": 1,
+        "requireDistinctTaskPerRound": true,
+        "maxRounds": 4
+      },
+      "validity": {
+        "minRounds": 4
+      },
+      "drops": [],
+      "tieBreaks": [
+        {
+          "$kind": "equalPlaces"
+        }
+      ],
+      "tasks": [
+        {
+          "code": "B",
+          "name": "Next to last and last flight",
+          "metrics": [
+            {
+              "name": "flightTime",
+              "kind": "Number",
+              "unit": "s",
+              "declaredBeforeLaunch": false,
+              "precision": {
+                "mode": "Truncate",
+                "precision": 0.1
+              }
+            },
+            {
+              "name": "landedWithinWindow",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": true
+              }
+            },
+            {
+              "name": "launchedInWorkingTime",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": true
+              }
+            }
+          ],
+          "flights": {
+            "$kind": "lastN",
+            "count": 2
+          },
+          "timing": {
+            "kind": "Fixed",
+            "workingTime": {
+              "param": "workingTime.B"
+            }
+          },
+          "group": {
+            "minPerGroup": 5
+          },
+          "flightValidWhen": {
+            "$kind": "allOf",
+            "children": [
+              {
+                "$kind": "comparison",
+                "leftMetricRef": "landedWithinWindow",
+                "op": "EqualTo",
+                "rightValue": {
+                  "kind": "Flag",
+                  "flag": true
+                }
+              },
+              {
+                "$kind": "comparison",
+                "leftMetricRef": "launchedInWorkingTime",
+                "op": "EqualTo",
+                "rightValue": {
+                  "kind": "Flag",
+                  "flag": true
+                }
+              }
+            ]
+          },
+          "score": [
+            {
+              "$kind": "rate",
+              "metricRef": "flightTime",
+              "rate": 1,
+              "cap": {
+                "param": "maxFlight.B"
+              },
+              "capScope": "PerFlight"
+            }
+          ],
+          "scoreNormalised": []
+        },
+        {
+          "code": "D",
+          "name": "Two flights",
+          "metrics": [
+            {
+              "name": "flightTime",
+              "kind": "Number",
+              "unit": "s",
+              "declaredBeforeLaunch": false,
+              "precision": {
+                "mode": "Truncate",
+                "precision": 0.1
+              }
+            },
+            {
+              "name": "landedWithinWindow",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": true
+              }
+            },
+            {
+              "name": "launchedInWorkingTime",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": true
+              }
+            }
+          ],
+          "flights": {
+            "$kind": "all"
+          },
+          "timing": {
+            "kind": "Fixed",
+            "workingTime": 600,
+            "maxLaunches": 2
+          },
+          "group": {
+            "minPerGroup": 5
+          },
+          "flightValidWhen": {
+            "$kind": "allOf",
+            "children": [
+              {
+                "$kind": "comparison",
+                "leftMetricRef": "landedWithinWindow",
+                "op": "EqualTo",
+                "rightValue": {
+                  "kind": "Flag",
+                  "flag": true
+                }
+              },
+              {
+                "$kind": "comparison",
+                "leftMetricRef": "launchedInWorkingTime",
+                "op": "EqualTo",
+                "rightValue": {
+                  "kind": "Flag",
+                  "flag": true
+                }
+              }
+            ]
+          },
+          "score": [
+            {
+              "$kind": "rate",
+              "metricRef": "flightTime",
+              "rate": 1,
+              "cap": 300,
+              "capScope": "PerFlight"
+            }
+          ],
+          "scoreNormalised": []
+        },
+        {
+          "code": "G",
+          "name": "Five longest flights",
+          "metrics": [
+            {
+              "name": "flightTime",
+              "kind": "Number",
+              "unit": "s",
+              "declaredBeforeLaunch": false,
+              "precision": {
+                "mode": "Truncate",
+                "precision": 0.1
+              }
+            },
+            {
+              "name": "landedWithinWindow",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": true
+              }
+            },
+            {
+              "name": "launchedInWorkingTime",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": true
+              }
+            }
+          ],
+          "flights": {
+            "$kind": "bestN",
+            "count": 5,
+            "targets": "None",
+            "targetValues": []
+          },
+          "timing": {
+            "kind": "Fixed",
+            "workingTime": 600
+          },
+          "group": {
+            "minPerGroup": 5
+          },
+          "flightValidWhen": {
+            "$kind": "allOf",
+            "children": [
+              {
+                "$kind": "comparison",
+                "leftMetricRef": "landedWithinWindow",
+                "op": "EqualTo",
+                "rightValue": {
+                  "kind": "Flag",
+                  "flag": true
+                }
+              },
+              {
+                "$kind": "comparison",
+                "leftMetricRef": "launchedInWorkingTime",
+                "op": "EqualTo",
+                "rightValue": {
+                  "kind": "Flag",
+                  "flag": true
+                }
+              }
+            ]
+          },
+          "score": [
+            {
+              "$kind": "rate",
+              "metricRef": "flightTime",
+              "rate": 1,
+              "cap": 120,
+              "capScope": "PerFlight"
+            }
+          ],
+          "scoreNormalised": []
+        },
+        {
+          "code": "H",
+          "name": "1, 2, 3 and 4 minute targets, any order",
+          "metrics": [
+            {
+              "name": "flightTime",
+              "kind": "Number",
+              "unit": "s",
+              "declaredBeforeLaunch": false,
+              "precision": {
+                "mode": "Truncate",
+                "precision": 0.1
+              }
+            },
+            {
+              "name": "landedWithinWindow",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": true
+              }
+            },
+            {
+              "name": "launchedInWorkingTime",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": true
+              }
+            }
+          ],
+          "flights": {
+            "$kind": "bestN",
+            "count": 4,
+            "rankByMetric": "flightTime",
+            "targets": "AnyOrder",
+            "targetValues": [
+              60,
+              120,
+              180,
+              240
+            ]
+          },
+          "timing": {
+            "kind": "Fixed",
+            "workingTime": 600
+          },
+          "group": {
+            "minPerGroup": 5
+          },
+          "flightValidWhen": {
+            "$kind": "allOf",
+            "children": [
+              {
+                "$kind": "comparison",
+                "leftMetricRef": "landedWithinWindow",
+                "op": "EqualTo",
+                "rightValue": {
+                  "kind": "Flag",
+                  "flag": true
+                }
+              },
+              {
+                "$kind": "comparison",
+                "leftMetricRef": "launchedInWorkingTime",
+                "op": "EqualTo",
+                "rightValue": {
+                  "kind": "Flag",
+                  "flag": true
+                }
+              }
+            ]
+          },
+          "score": [
+            {
+              "$kind": "rate",
+              "metricRef": "flightTime",
+              "rate": 1,
+              "capScope": "PerFlight"
+            }
+          ],
+          "scoreNormalised": []
+        }
+      ]
+    }
+  ]
+}

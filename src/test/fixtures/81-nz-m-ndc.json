@@ -1,0 +1,227 @@
+{
+  "name": "ALES 200 (NDC format)",
+  "faiDesignation": "",
+  "version": "NZMAA Section 5 Soaring, March 2024",
+  "parameters": [
+    {
+      "name": "minNewGroup",
+      "kind": "Number",
+      "allowedValues": [],
+      "boundAt": "CompetitionSetup"
+    }
+  ],
+  "reflight": {
+    "entitledScores": "UndefinedRequiresRuling",
+    "othersScore": "UndefinedRequiresRuling",
+    "minNewGroupSize": {
+      "param": "minNewGroup"
+    }
+  },
+  "penalties": [
+    {
+      "infractionType": "launchOutsideBuzzerWindow",
+      "exclusionGroups": [],
+      "accrual": "OncePerAttempt",
+      "effects": [
+        {
+          "effect": "ZeroRound"
+        }
+      ]
+    },
+    {
+      "infractionType": "landedOutsideFieldBounds",
+      "exclusionGroups": [],
+      "accrual": "OncePerAttempt",
+      "effects": [
+        {
+          "effect": "ZeroRound"
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "ordinal": 1,
+      "type": "Preliminary",
+      "rounds": {
+        "kind": "FixedSequence",
+        "tasksPerRound": 1,
+        "requireDistinctTaskPerRound": false,
+        "maxRounds": 4
+      },
+      "validity": {
+        "minRounds": 4
+      },
+      "drops": [],
+      "tieBreaks": [
+        {
+          "$kind": "equalPlaces"
+        }
+      ],
+      "tasks": [
+        {
+          "code": "D",
+          "name": "Thermal Duration (NDC)",
+          "metrics": [
+            {
+              "name": "flightTime",
+              "kind": "Number",
+              "unit": "s",
+              "declaredBeforeLaunch": false,
+              "precision": {
+                "mode": "Truncate",
+                "precision": 1
+              }
+            },
+            {
+              "name": "landingDistance",
+              "kind": "Number",
+              "unit": "m",
+              "declaredBeforeLaunch": false,
+              "precision": {
+                "mode": "Ceiling",
+                "precision": 1
+              }
+            },
+            {
+              "name": "damagedAndNotSafelyFlyable",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": false
+              }
+            },
+            {
+              "name": "touchedByCompetitor",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": false
+              }
+            },
+            {
+              "name": "landedWithin75m",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": true
+              }
+            }
+          ],
+          "flights": {
+            "$kind": "last"
+          },
+          "timing": {
+            "kind": "UntilAllFlightsComplete",
+            "maxLaunches": 1
+          },
+          "flightValidWhen": {
+            "$kind": "comparison",
+            "leftMetricRef": "landedWithin75m",
+            "op": "EqualTo",
+            "rightValue": {
+              "kind": "Flag",
+              "flag": true
+            }
+          },
+          "score": [
+            {
+              "$kind": "piecewise",
+              "metricRef": "flightTime",
+              "bands": [
+                {
+                  "from": 0,
+                  "to": 600,
+                  "ratePerUnit": 1
+                },
+                {
+                  "from": 600,
+                  "ratePerUnit": -1
+                }
+              ]
+            },
+            {
+              "$kind": "conditional",
+              "when": {
+                "$kind": "allOf",
+                "children": [
+                  {
+                    "$kind": "comparison",
+                    "leftMetricRef": "damagedAndNotSafelyFlyable",
+                    "op": "EqualTo",
+                    "rightValue": {
+                      "kind": "Flag",
+                      "flag": false
+                    }
+                  },
+                  {
+                    "$kind": "comparison",
+                    "leftMetricRef": "touchedByCompetitor",
+                    "op": "EqualTo",
+                    "rightValue": {
+                      "kind": "Flag",
+                      "flag": false
+                    }
+                  }
+                ]
+              },
+              "then": {
+                "$kind": "lookup",
+                "metricRef": "landingDistance",
+                "rows": [
+                  {
+                    "upTo": 1,
+                    "points": 50
+                  },
+                  {
+                    "upTo": 2,
+                    "points": 45
+                  },
+                  {
+                    "upTo": 3,
+                    "points": 40
+                  },
+                  {
+                    "upTo": 4,
+                    "points": 35
+                  },
+                  {
+                    "upTo": 5,
+                    "points": 30
+                  },
+                  {
+                    "upTo": 6,
+                    "points": 25
+                  },
+                  {
+                    "upTo": 7,
+                    "points": 20
+                  },
+                  {
+                    "upTo": 8,
+                    "points": 15
+                  },
+                  {
+                    "upTo": 9,
+                    "points": 10
+                  },
+                  {
+                    "upTo": 10,
+                    "points": 5
+                  },
+                  {
+                    "points": 0
+                  }
+                ]
+              }
+            }
+          ],
+          "scoreNormalised": []
+        }
+      ]
+    }
+  ]
+}

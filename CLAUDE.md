@@ -5,9 +5,13 @@ Companion SPA to the Soarscore service (sibling repo
 
 ## What this is
 
-A single-form web app for NZMAA NDC organisers who capture results on paper
-during the day and score them at home in the evening. Replaces
+A single spreadsheet-like web page for NZMAA NDC organisers who capture
+results on paper during the day and score them at home in the evening: one
+grid, free entry in any cell at any time, one **Calculate** button. Replaces
 `SoarScore2/Soaring_NDC_Scoresheet_v3.xlsm`; the field tool stays paper.
+
+Read the docs/Functional Overview.md doc for an overview of the UI application.
+Read the docs/soaring-domain-glossary.md for an overview of the key nouns of the domain
 
 ## Laws (violating any of these is a design error, not a style choice)
 
@@ -22,9 +26,13 @@ during the day and score them at home in the evening. Replaces
 3. **No class-specific logic in the client.** Grid columns, metrics, flags
    and tasks derive from `GET /class-definition` for the adopted class — the
    client must never branch on F3K vs ALES vs X5J.
-4. **Write-through, not batch.** A committed cell becomes a command promptly;
-   the only client-local state is uncommitted text. Corrections are amends,
-   never overwrites.
+4. **Batch on Calculate.** The sheet is uncommitted text until **Calculate**;
+   then the client orchestrates the whole command sequence invisibly
+   (find-or-create competition → bind → find-or-register pilots → draw →
+   open entry/flight → capture or amend → complete task-rounds → read
+   scores). Nothing but the sheet text is client state. Corrections are
+   entered freely — overtype and recalculate: amends carry an auto-filled
+   reason, never overwrites, and the organiser is never asked for one.
 
 ## Board
 

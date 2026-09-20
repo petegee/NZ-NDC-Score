@@ -1,0 +1,4284 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Soarscore.Api | v1",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:5199/"
+    }
+  ],
+  "paths": {
+    "/register-person": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterPerson"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/rename-person": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenamePerson"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/change-person-contact-details": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePersonContactDetails"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/change-person-club-affiliation": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePersonClubAffiliation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/link-sign-in": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkSignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/grant-role": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantRole"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/revoke-role": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeRole"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/configure-capture-policy": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigureCapturePolicy"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/bind-identity": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindIdentity"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/publish-class-definition": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishClassDefinition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/create-competition": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCompetition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/register-competitor": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterCompetitor"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/withdraw-competitor": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawCompetitor"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/draw-phase": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DrawPhase"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/prescribe-draw": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrescribeDraw"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/accept-draw": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptDraw"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/reject-draw": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectDraw"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/bind-parameter": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindParameter"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/declare-instruments": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclareInstruments"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/correct-instrument-declaration": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorrectInstrumentDeclaration"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/complete-task-round": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteTaskRound"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/reopen-task-round": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReopenTaskRound"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/annul-task-round": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnulTaskRound"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/finalise-competition": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinaliseCompetition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/record-competition-penalty": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordCompetitionPenalty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/append-reflight-group": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppendReflightGroup"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/assign-group-spots": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignGroupSpots"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/record-reflight-ruling": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordReflightRuling"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/record-tie-break-outcome": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordTieBreakOutcome"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/define-scoring-team": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineScoringTeam"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/define-protection-group": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineProtectionGroup"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/assign-scoring-team-membership": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignScoringTeamMembership"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/clear-scoring-team-membership": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClearScoringTeamMembership"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/add-protection-group-member": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddProtectionGroupMember"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/remove-protection-group-member": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveProtectionGroupMember"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/configure-team-classification": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigureTeamClassification"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/open-entry": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenEntry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/open-flight": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenFlight"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/capture-measurement": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureMeasurement"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/amend-measurement": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AmendMeasurement"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/annul-entry": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnulEntry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/record-entry-penalty": {
+      "post": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordEntryPenalty"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/people": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "Email",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/person": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "Id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/who-am-i": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/class-definitions": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "Name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ActiveOnly",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/class-definition": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "ContentHash",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/competitions": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "OnOrAfter",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "ClassContentHash",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/competition": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "Id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/competition-event-log": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "Id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "IncludePayload",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/entries": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "CompetitionRef",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PhaseOrdinal",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "RoundOrdinal",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "TaskRoundOrdinal",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "GroupRef",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "CompetitorRef",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/task-round-recording": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "CompetitionRef",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PhaseOrdinal",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "RoundOrdinal",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "TaskRoundOrdinal",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "GroupRef",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/task-round-result": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "CompetitionRef",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PhaseOrdinal",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "RoundOrdinal",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "TaskRoundOrdinal",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "GroupRef",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/competition-result": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "CompetitionRef",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/competition-pending-tie-breaks": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "CompetitionRef",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/competition-teams": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "CompetitionRef",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/competition-team-result": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "CompetitionRef",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/draw-diagnostics": {
+      "get": {
+        "tags": [
+          "Soarscore.Api"
+        ],
+        "parameters": [
+          {
+            "name": "CompetitionRef",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AcceptDraw": {
+        "required": [
+          "competitionId"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionId": {
+            "$ref": "#/components/schemas/CompetitionId"
+          }
+        }
+      },
+      "AddProtectionGroupMember": {
+        "required": [
+          "competitionRef",
+          "competitorRef",
+          "groupRef"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "competitorRef": {
+            "$ref": "#/components/schemas/CompetitorId"
+          },
+          "groupRef": {
+            "$ref": "#/components/schemas/ProtectionGroupId"
+          }
+        }
+      },
+      "AmendMeasurement": {
+        "required": [
+          "entryRef",
+          "flightSequence",
+          "metric",
+          "newValue",
+          "reason",
+          "by"
+        ],
+        "type": "object",
+        "properties": {
+          "entryRef": {
+            "$ref": "#/components/schemas/EntryId"
+          },
+          "flightSequence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "metric": {
+            "type": "string"
+          },
+          "newValue": {
+            "$ref": "#/components/schemas/MeasuredValue"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "by": {
+            "type": "string"
+          },
+          "instrument": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "changeInstrument": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "AnnulEntry": {
+        "required": [
+          "entryRef",
+          "reason",
+          "by"
+        ],
+        "type": "object",
+        "properties": {
+          "entryRef": {
+            "$ref": "#/components/schemas/EntryId"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "by": {
+            "type": "string"
+          }
+        }
+      },
+      "AnnulTaskRound": {
+        "required": [
+          "competitionRef",
+          "phaseOrdinal",
+          "roundOrdinal",
+          "taskRoundOrdinal",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "phaseOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "roundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "taskRoundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "AppendReflightGroup": {
+        "required": [
+          "competitionRef",
+          "phaseOrdinal",
+          "roundOrdinal",
+          "taskRoundOrdinal",
+          "members",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "phaseOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "roundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "taskRoundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompetitorId"
+            }
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "AssignGroupSpots": {
+        "required": [
+          "competitionRef",
+          "phaseOrdinal",
+          "roundOrdinal",
+          "taskRoundOrdinal",
+          "groupRef",
+          "spots"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "phaseOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "roundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "taskRoundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "groupRef": {
+            "$ref": "#/components/schemas/GroupId"
+          },
+          "spots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupSpot"
+            }
+          }
+        }
+      },
+      "AssignScoringTeamMembership": {
+        "required": [
+          "competitionRef",
+          "competitorRef",
+          "teamRef",
+          "contributes"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "competitorRef": {
+            "$ref": "#/components/schemas/CompetitorId"
+          },
+          "teamRef": {
+            "$ref": "#/components/schemas/ScoringTeamId"
+          },
+          "contributes": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Band": {
+        "required": [
+          "from",
+          "to",
+          "ratePerUnit"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NumberOrParam"
+              }
+            ]
+          },
+          "to": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NumberOrParam"
+              }
+            ]
+          },
+          "ratePerUnit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "BindIdentity": {
+        "required": [
+          "personRef",
+          "provider",
+          "subject"
+        ],
+        "type": "object",
+        "properties": {
+          "personRef": {
+            "$ref": "#/components/schemas/PersonId"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        }
+      },
+      "BindParameter": {
+        "required": [
+          "competitionRef",
+          "parameterName",
+          "value",
+          "by"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "parameterName": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/MeasuredValue"
+          },
+          "by": {
+            "type": "string"
+          },
+          "phaseOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "roundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "CapScope": {
+        "enum": [
+          "PerFlight",
+          "PerTask"
+        ]
+      },
+      "CaptureMeasurement": {
+        "required": [
+          "entryRef",
+          "flightSequence",
+          "metric",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "entryRef": {
+            "$ref": "#/components/schemas/EntryId"
+          },
+          "flightSequence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "metric": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/components/schemas/MeasuredValue"
+          },
+          "instrument": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CapturePolicy": {
+        "required": [
+          "mode",
+          "capturers"
+        ],
+        "type": "object",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/CapturePolicyMode"
+          },
+          "capturers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonId"
+            }
+          }
+        }
+      },
+      "CapturePolicyMode": {
+        "enum": [
+          "OrganisersOnly",
+          "AnyRegisteredPerson",
+          "AllowList"
+        ]
+      },
+      "ChangePersonClubAffiliation": {
+        "required": [
+          "id",
+          "club"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PersonId"
+          },
+          "club": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ClubAffiliation"
+              }
+            ]
+          }
+        }
+      },
+      "ChangePersonContactDetails": {
+        "required": [
+          "id",
+          "contact"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PersonId"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/ContactDetails"
+          }
+        }
+      },
+      "ClassDefinition": {
+        "required": [
+          "name",
+          "version",
+          "reflight",
+          "phases"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "faiDesignation": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "type": "string"
+          },
+          "finalRanking": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FinalRankingKind"
+              }
+            ]
+          },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Parameter"
+            }
+          },
+          "reflight": {
+            "$ref": "#/components/schemas/ReflightRule"
+          },
+          "penalties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PenaltyDefinition"
+            }
+          },
+          "phases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhaseDefinition"
+            }
+          }
+        }
+      },
+      "ClearScoringTeamMembership": {
+        "required": [
+          "competitionRef",
+          "competitorRef"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "competitorRef": {
+            "$ref": "#/components/schemas/CompetitorId"
+          }
+        }
+      },
+      "ClubAffiliation": {
+        "required": [
+          "clubName"
+        ],
+        "type": "object",
+        "properties": {
+          "clubName": {
+            "type": "string"
+          },
+          "membershipNumber": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "Comparator": {
+        "enum": [
+          "LessThan",
+          "LessOrEqual",
+          "GreaterThan",
+          "GreaterOrEqual",
+          "EqualTo"
+        ]
+      },
+      "CompetitionId": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CompetitorId": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "CompleteTaskRound": {
+        "required": [
+          "competitionRef",
+          "phaseOrdinal",
+          "roundOrdinal",
+          "taskRoundOrdinal"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "phaseOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "roundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "taskRoundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "CompositionKind": {
+        "enum": [
+          "FixedSequence",
+          "ChooseFromCatalogue"
+        ]
+      },
+      "ConfigureCapturePolicy": {
+        "required": [
+          "competitionRef",
+          "policy"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/CapturePolicy"
+          }
+        }
+      },
+      "ConfigureTeamClassification": {
+        "required": [
+          "competitionRef",
+          "enabled",
+          "by"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "by": {
+            "type": "string"
+          }
+        }
+      },
+      "ContactDetails": {
+        "required": [
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "homeCity": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CorrectInstrumentDeclaration": {
+        "required": [
+          "competitionRef",
+          "instruments",
+          "reason",
+          "by"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "instruments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeclaredInstrument"
+            }
+          },
+          "reason": {
+            "type": "string"
+          },
+          "by": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateCompetition": {
+        "required": [
+          "name",
+          "location",
+          "startDate",
+          "endDate",
+          "classContentHash"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "classContentHash": {
+            "type": "string"
+          }
+        }
+      },
+      "DeclaredInstrument": {
+        "required": [
+          "instrument",
+          "metric",
+          "scale"
+        ],
+        "type": "object",
+        "properties": {
+          "instrument": {
+            "type": "string"
+          },
+          "metric": {
+            "type": "string"
+          },
+          "scale": {
+            "$ref": "#/components/schemas/ReadingScale"
+          }
+        }
+      },
+      "DeclareInstruments": {
+        "required": [
+          "competitionRef",
+          "instruments",
+          "by"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "instruments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeclaredInstrument"
+            }
+          },
+          "by": {
+            "type": "string"
+          }
+        }
+      },
+      "DefineProtectionGroup": {
+        "required": [
+          "competitionRef",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "DefineScoringTeam": {
+        "required": [
+          "competitionRef",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "DrawPhase": {
+        "required": [
+          "competitionId",
+          "rounds"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionId": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "rounds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "taskRefs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DropDimension": {
+        "enum": [
+          "ByRound",
+          "ByTask"
+        ]
+      },
+      "DropPolicy": {
+        "required": [
+          "dimension",
+          "dropCount"
+        ],
+        "type": "object",
+        "properties": {
+          "dimension": {
+            "$ref": "#/components/schemas/DropDimension"
+          },
+          "dropCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "applyWhenRoundsCompletedAtLeast": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "applyWhenResultsAtLeast": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tieBreak": {
+            "$ref": "#/components/schemas/DropTieBreak"
+          }
+        }
+      },
+      "DropTieBreak": {
+        "enum": [
+          "Latest",
+          "Earliest"
+        ]
+      },
+      "EntryId": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "FinaliseCompetition": {
+        "required": [
+          "competitionRef",
+          "by"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "by": {
+            "type": "string"
+          }
+        }
+      },
+      "FinalRankingKind": {
+        "enum": [
+          "SinglePhase",
+          "LastPhaseReplaces",
+          "SplitByPromotion",
+          null
+        ]
+      },
+      "FlagOrParam": { },
+      "FlightSelection": {
+        "required": [
+          "$kind"
+        ],
+        "type": "object",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/FlightSelectionLastFlight"
+          },
+          {
+            "$ref": "#/components/schemas/FlightSelectionAllFlights"
+          },
+          {
+            "$ref": "#/components/schemas/FlightSelectionLastNFlights"
+          },
+          {
+            "$ref": "#/components/schemas/FlightSelectionBestNFlights"
+          },
+          {
+            "$ref": "#/components/schemas/FlightSelectionExactlyNInOrder"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "$kind",
+          "mapping": {
+            "last": "#/components/schemas/FlightSelectionLastFlight",
+            "all": "#/components/schemas/FlightSelectionAllFlights",
+            "lastN": "#/components/schemas/FlightSelectionLastNFlights",
+            "bestN": "#/components/schemas/FlightSelectionBestNFlights",
+            "exactlyN": "#/components/schemas/FlightSelectionExactlyNInOrder"
+          }
+        }
+      },
+      "FlightSelectionAllFlights": {
+        "properties": {
+          "$kind": {
+            "enum": [
+              "all"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "FlightSelectionBestNFlights": {
+        "required": [
+          "count"
+        ],
+        "properties": {
+          "$kind": {
+            "enum": [
+              "bestN"
+            ],
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rankByMetric": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targets": {
+            "$ref": "#/components/schemas/TargetAssignment"
+          },
+          "targetValues": {
+            "type": "array",
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "double"
+            }
+          }
+        }
+      },
+      "FlightSelectionExactlyNInOrder": {
+        "required": [
+          "count"
+        ],
+        "properties": {
+          "$kind": {
+            "enum": [
+              "exactlyN"
+            ],
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "targets": {
+            "$ref": "#/components/schemas/TargetAssignment"
+          },
+          "targetValues": {
+            "type": "array",
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "double"
+            }
+          }
+        }
+      },
+      "FlightSelectionLastFlight": {
+        "properties": {
+          "$kind": {
+            "enum": [
+              "last"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "FlightSelectionLastNFlights": {
+        "required": [
+          "count"
+        ],
+        "properties": {
+          "$kind": {
+            "enum": [
+              "lastN"
+            ],
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "GrantRole": {
+        "required": [
+          "personRef",
+          "role"
+        ],
+        "type": "object",
+        "properties": {
+          "personRef": {
+            "$ref": "#/components/schemas/PersonId"
+          },
+          "role": {
+            "$ref": "#/components/schemas/PersonRole"
+          }
+        }
+      },
+      "GroupConstraint": {
+        "required": [
+          "minPerGroup"
+        ],
+        "type": "object",
+        "properties": {
+          "minPerGroup": {
+            "$ref": "#/components/schemas/NumberOrParam"
+          },
+          "minValidResults": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "minEnforcement": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MinEnforcement"
+              }
+            ]
+          }
+        }
+      },
+      "GroupId": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "GroupSpot": {
+        "required": [
+          "competitorRef",
+          "spot"
+        ],
+        "type": "object",
+        "properties": {
+          "competitorRef": {
+            "$ref": "#/components/schemas/CompetitorId"
+          },
+          "spot": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "LinkSignIn": {
+        "type": "object"
+      },
+      "LookupRow": {
+        "required": [
+          "upTo",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "upTo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "points": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "MeasuredKind": {
+        "enum": [
+          "Number",
+          "Flag"
+        ]
+      },
+      "MeasuredValue": {
+        "required": [
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/MeasuredKind"
+          },
+          "number": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "flag": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "MetricDefinition": {
+        "required": [
+          "name",
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MeasuredKind"
+          },
+          "unit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "declaredBeforeLaunch": {
+            "type": "boolean"
+          },
+          "precision": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Rounding"
+              }
+            ]
+          },
+          "whenNotRecorded": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MeasuredValue"
+              }
+            ]
+          }
+        }
+      },
+      "MinEnforcement": {
+        "enum": [
+          "Shall",
+          "Should",
+          null
+        ]
+      },
+      "Normalisation": {
+        "required": [
+          "direction",
+          "winnerScore"
+        ],
+        "type": "object",
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/NormalisationDirection"
+          },
+          "winnerScore": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "round": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Rounding"
+              }
+            ]
+          }
+        }
+      },
+      "NormalisationDirection": {
+        "enum": [
+          "HigherIsBetter",
+          "LowerIsBetter"
+        ]
+      },
+      "NumberOrParam": { },
+      "OpenEntry": {
+        "required": [
+          "competitionRef",
+          "phaseOrdinal",
+          "roundOrdinal",
+          "taskRoundOrdinal",
+          "groupRef",
+          "competitorRef"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "phaseOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "roundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "taskRoundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "groupRef": {
+            "$ref": "#/components/schemas/GroupId"
+          },
+          "competitorRef": {
+            "$ref": "#/components/schemas/CompetitorId"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ReflightRole"
+          },
+          "countsForRoundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "OpenFlight": {
+        "required": [
+          "entryRef"
+        ],
+        "type": "object",
+        "properties": {
+          "entryRef": {
+            "$ref": "#/components/schemas/EntryId"
+          },
+          "sequence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "Parameter": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MeasuredKind"
+          },
+          "unit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MeasuredValue"
+              }
+            ]
+          },
+          "allowedValues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MeasuredValue"
+            }
+          },
+          "boundAt": {
+            "$ref": "#/components/schemas/ParameterBindingPoint"
+          }
+        }
+      },
+      "ParameterBindingPoint": {
+        "enum": [
+          "CompetitionSetup",
+          "BeforeFlying",
+          "PerRound"
+        ]
+      },
+      "PenaltyAccrual": {
+        "enum": [
+          "OncePerAttempt",
+          "PerOccurrence"
+        ]
+      },
+      "PenaltyDefinition": {
+        "required": [
+          "infractionType",
+          "effects"
+        ],
+        "type": "object",
+        "properties": {
+          "infractionType": {
+            "type": "string"
+          },
+          "exclusionGroups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "accrual": {
+            "$ref": "#/components/schemas/PenaltyAccrual"
+          },
+          "effects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PenaltyEffectSpec"
+            }
+          },
+          "permittedScopes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PenaltyScope"
+            }
+          }
+        }
+      },
+      "PenaltyEffect": {
+        "enum": [
+          "DeductPoints",
+          "ZeroFlight",
+          "ZeroRound",
+          "ZeroTask",
+          "Disqualify"
+        ]
+      },
+      "PenaltyEffectSpec": {
+        "required": [
+          "effect"
+        ],
+        "type": "object",
+        "properties": {
+          "effect": {
+            "$ref": "#/components/schemas/PenaltyEffect"
+          },
+          "points": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "PenaltyScope": {
+        "enum": [
+          "Flight",
+          "Entry",
+          "TaskRound",
+          "Competition"
+        ]
+      },
+      "PersonId": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "PersonRole": {
+        "enum": [
+          "Competitor",
+          "Organiser"
+        ]
+      },
+      "PhaseDefinition": {
+        "required": [
+          "ordinal",
+          "type",
+          "validity",
+          "tasks"
+        ],
+        "type": "object",
+        "properties": {
+          "ordinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "type": {
+            "$ref": "#/components/schemas/PhaseType"
+          },
+          "rounds": {
+            "$ref": "#/components/schemas/RoundComposition"
+          },
+          "validity": {
+            "$ref": "#/components/schemas/ValidityRule"
+          },
+          "drops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DropPolicy"
+            }
+          },
+          "tieBreaks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TieBreakDirective"
+            }
+          },
+          "promotion": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PromotionRule"
+              }
+            ]
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskDefinition"
+            }
+          }
+        }
+      },
+      "PhaseType": {
+        "enum": [
+          "Preliminary",
+          "Flyoff"
+        ]
+      },
+      "Predicate": {
+        "required": [
+          "$kind"
+        ],
+        "type": "object",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/PredicateComparison"
+          },
+          {
+            "$ref": "#/components/schemas/PredicateAllOf"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "$kind",
+          "mapping": {
+            "comparison": "#/components/schemas/PredicateComparison",
+            "allOf": "#/components/schemas/PredicateAllOf"
+          }
+        }
+      },
+      "PredicateAllOf": {
+        "required": [
+          "children"
+        ],
+        "properties": {
+          "$kind": {
+            "enum": [
+              "allOf"
+            ],
+            "type": "string"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Predicate"
+            }
+          }
+        }
+      },
+      "PredicateComparison": {
+        "required": [
+          "leftMetricRef",
+          "op"
+        ],
+        "properties": {
+          "$kind": {
+            "enum": [
+              "comparison"
+            ],
+            "type": "string"
+          },
+          "leftMetricRef": {
+            "type": "string"
+          },
+          "op": {
+            "$ref": "#/components/schemas/Comparator"
+          },
+          "rightMetricRef": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rightValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MeasuredValue"
+              }
+            ]
+          }
+        }
+      },
+      "PrescribedGroup": {
+        "required": [
+          "competitors"
+        ],
+        "type": "object",
+        "properties": {
+          "competitors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompetitorId"
+            }
+          }
+        }
+      },
+      "PrescribeDraw": {
+        "required": [
+          "competitionId",
+          "rounds",
+          "by"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionId": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "rounds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrescribedRound"
+            }
+          },
+          "by": {
+            "type": "string"
+          }
+        }
+      },
+      "PrescribedRound": {
+        "required": [
+          "taskRef",
+          "groups"
+        ],
+        "type": "object",
+        "properties": {
+          "taskRef": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrescribedGroup"
+            }
+          }
+        }
+      },
+      "PromotionKind": {
+        "enum": [
+          "TopN",
+          "TopPercent"
+        ]
+      },
+      "PromotionRule": {
+        "required": [
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/PromotionKind"
+          },
+          "topN": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NumberOrParam"
+              }
+            ]
+          },
+          "topPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "minGroupSize": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NumberOrParam"
+              }
+            ]
+          },
+          "maxGroupSize": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NumberOrParam"
+              }
+            ]
+          },
+          "carryPenalties": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FlagOrParam"
+              }
+            ]
+          }
+        }
+      },
+      "ProtectionGroupId": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "PublishClassDefinition": {
+        "required": [
+          "definition"
+        ],
+        "type": "object",
+        "properties": {
+          "definition": {
+            "$ref": "#/components/schemas/ClassDefinition"
+          }
+        }
+      },
+      "ReadingScale": {
+        "required": [
+          "unit",
+          "marks"
+        ],
+        "type": "object",
+        "properties": {
+          "unit": {
+            "type": "string"
+          },
+          "marks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScaleMark"
+            }
+          },
+          "offScaleReading": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "readingSet": {
+            "type": "array",
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "double"
+            }
+          }
+        }
+      },
+      "RecordCompetitionPenalty": {
+        "required": [
+          "competitionRef",
+          "infractionType",
+          "scope",
+          "competitorRef",
+          "taskRound",
+          "by"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "infractionType": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/PenaltyScope"
+          },
+          "competitorRef": {
+            "$ref": "#/components/schemas/CompetitorId"
+          },
+          "taskRound": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaskRoundCoordinate"
+              }
+            ]
+          },
+          "by": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RecordEntryPenalty": {
+        "required": [
+          "entryRef",
+          "infractionType",
+          "scope",
+          "by"
+        ],
+        "type": "object",
+        "properties": {
+          "entryRef": {
+            "$ref": "#/components/schemas/EntryId"
+          },
+          "infractionType": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/PenaltyScope"
+          },
+          "by": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RecordReflightRuling": {
+        "required": [
+          "competitionRef",
+          "phaseOrdinal",
+          "roundOrdinal",
+          "taskRoundOrdinal",
+          "competitorRef",
+          "selection",
+          "reason",
+          "by"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "phaseOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "roundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "taskRoundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "competitorRef": {
+            "$ref": "#/components/schemas/CompetitorId"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/ReflightSelection"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "by": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RecordTieBreakOutcome": {
+        "required": [
+          "competitionRef",
+          "phaseOrdinal",
+          "directive",
+          "placings",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "phaseOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "directive": {
+            "$ref": "#/components/schemas/TieBreakDirective"
+          },
+          "placings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TieBreakOutcomePlacing"
+            }
+          },
+          "reason": {
+            "type": "string"
+          },
+          "by": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ReflightRole": {
+        "enum": [
+          "Original",
+          "Entitled",
+          "Filler"
+        ],
+        "default": "Original"
+      },
+      "ReflightRule": {
+        "required": [
+          "entitledScores",
+          "othersScore"
+        ],
+        "type": "object",
+        "properties": {
+          "entitledScores": {
+            "$ref": "#/components/schemas/ReflightSelection"
+          },
+          "othersScore": {
+            "$ref": "#/components/schemas/ReflightSelection"
+          },
+          "minNewGroupSize": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NumberOrParam"
+              }
+            ]
+          }
+        }
+      },
+      "ReflightSelection": {
+        "enum": [
+          "Replacement",
+          "BetterOf",
+          "NotPermitted",
+          "UndefinedRequiresRuling"
+        ]
+      },
+      "RegisterCompetitor": {
+        "required": [
+          "competitionId",
+          "personId"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionId": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "personId": {
+            "$ref": "#/components/schemas/PersonId"
+          }
+        }
+      },
+      "RegisterPerson": {
+        "required": [
+          "name",
+          "contact",
+          "club"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/ContactDetails"
+          },
+          "club": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ClubAffiliation"
+              }
+            ]
+          }
+        }
+      },
+      "RejectDraw": {
+        "required": [
+          "competitionRef",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "RemoveProtectionGroupMember": {
+        "required": [
+          "competitionRef",
+          "competitorRef",
+          "groupRef"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "competitorRef": {
+            "$ref": "#/components/schemas/CompetitorId"
+          },
+          "groupRef": {
+            "$ref": "#/components/schemas/ProtectionGroupId"
+          }
+        }
+      },
+      "RenamePerson": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PersonId"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "ReopenTaskRound": {
+        "required": [
+          "competitionRef",
+          "phaseOrdinal",
+          "roundOrdinal",
+          "taskRoundOrdinal",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionRef": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "phaseOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "roundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "taskRoundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "RevokeRole": {
+        "required": [
+          "personRef",
+          "role"
+        ],
+        "type": "object",
+        "properties": {
+          "personRef": {
+            "$ref": "#/components/schemas/PersonId"
+          },
+          "role": {
+            "$ref": "#/components/schemas/PersonRole"
+          }
+        }
+      },
+      "RoundComposition": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/CompositionKind"
+          },
+          "tasksPerRound": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requireDistinctTaskPerRound": {
+            "type": "boolean"
+          },
+          "maxRounds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "Rounding": {
+        "required": [
+          "mode",
+          "precision"
+        ],
+        "type": "object",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/RoundingMode"
+          },
+          "precision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "RoundingMode": {
+        "enum": [
+          "Truncate",
+          "HalfUp",
+          "Ceiling"
+        ]
+      },
+      "ScaleMark": {
+        "required": [
+          "upTo",
+          "reading"
+        ],
+        "type": "object",
+        "properties": {
+          "upTo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "reading": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "ScoreTerm": {
+        "required": [
+          "$kind"
+        ],
+        "type": "object",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/ScoreTermRateTerm"
+          },
+          {
+            "$ref": "#/components/schemas/ScoreTermLookupTerm"
+          },
+          {
+            "$ref": "#/components/schemas/ScoreTermPiecewiseTerm"
+          },
+          {
+            "$ref": "#/components/schemas/ScoreTermConstantTerm"
+          },
+          {
+            "$ref": "#/components/schemas/ScoreTermConditionalTerm"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "$kind",
+          "mapping": {
+            "rate": "#/components/schemas/ScoreTermRateTerm",
+            "lookup": "#/components/schemas/ScoreTermLookupTerm",
+            "piecewise": "#/components/schemas/ScoreTermPiecewiseTerm",
+            "constant": "#/components/schemas/ScoreTermConstantTerm",
+            "conditional": "#/components/schemas/ScoreTermConditionalTerm"
+          }
+        }
+      },
+      "ScoreTermConditionalTerm": {
+        "required": [
+          "when",
+          "then"
+        ],
+        "properties": {
+          "$kind": {
+            "enum": [
+              "conditional"
+            ],
+            "type": "string"
+          },
+          "when": {
+            "$ref": "#/components/schemas/Predicate"
+          },
+          "then": {
+            "$ref": "#/components/schemas/ScoreTerm"
+          },
+          "else": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScoreTerm"
+              }
+            ]
+          }
+        }
+      },
+      "ScoreTermConstantTerm": {
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "$kind": {
+            "enum": [
+              "constant"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "ScoreTermLookupTerm": {
+        "required": [
+          "metricRef",
+          "rows"
+        ],
+        "properties": {
+          "$kind": {
+            "enum": [
+              "lookup"
+            ],
+            "type": "string"
+          },
+          "metricRef": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LookupRow"
+            }
+          }
+        }
+      },
+      "ScoreTermPiecewiseTerm": {
+        "required": [
+          "metricRef",
+          "bands"
+        ],
+        "properties": {
+          "$kind": {
+            "enum": [
+              "piecewise"
+            ],
+            "type": "string"
+          },
+          "metricRef": {
+            "type": "string"
+          },
+          "origin": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NumberOrParam"
+              }
+            ]
+          },
+          "bands": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Band"
+            }
+          }
+        }
+      },
+      "ScoreTermRateTerm": {
+        "required": [
+          "metricRef",
+          "rate"
+        ],
+        "properties": {
+          "$kind": {
+            "enum": [
+              "rate"
+            ],
+            "type": "string"
+          },
+          "metricRef": {
+            "type": "string"
+          },
+          "rate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "cap": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NumberOrParam"
+              }
+            ]
+          },
+          "capScope": {
+            "$ref": "#/components/schemas/CapScope"
+          }
+        }
+      },
+      "ScoringTeamId": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "TargetAssignment": {
+        "enum": [
+          "None",
+          "AnyOrder",
+          "InOrder"
+        ]
+      },
+      "TaskDefinition": {
+        "required": [
+          "code",
+          "name",
+          "metrics",
+          "flights",
+          "timing",
+          "score"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricDefinition"
+            }
+          },
+          "flights": {
+            "$ref": "#/components/schemas/FlightSelection"
+          },
+          "timing": {
+            "$ref": "#/components/schemas/TaskTiming"
+          },
+          "group": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GroupConstraint"
+              }
+            ]
+          },
+          "normalise": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Normalisation"
+              }
+            ]
+          },
+          "validWhen": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Predicate"
+              }
+            ]
+          },
+          "flightValidWhen": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Predicate"
+              }
+            ]
+          },
+          "rawScore": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Rounding"
+              }
+            ]
+          },
+          "reflight": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReflightRule"
+              }
+            ]
+          },
+          "score": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScoreTerm"
+            }
+          },
+          "scoreNormalised": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScoreTerm"
+            }
+          }
+        }
+      },
+      "TaskRoundCoordinate": {
+        "required": [
+          "phaseOrdinal",
+          "roundOrdinal",
+          "taskRoundOrdinal"
+        ],
+        "type": "object",
+        "properties": {
+          "phaseOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "roundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "taskRoundOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "TaskTiming": {
+        "required": [
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/WorkingTimeKind"
+          },
+          "workingTime": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NumberOrParam"
+              }
+            ]
+          },
+          "preparationTime": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NumberOrParam"
+              }
+            ]
+          },
+          "maxLaunches": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NumberOrParam"
+              }
+            ]
+          }
+        }
+      },
+      "TieBreakDirective": {
+        "required": [
+          "$kind"
+        ],
+        "type": "object",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/TieBreakDirectiveBestDroppedScore"
+          },
+          {
+            "$ref": "#/components/schemas/TieBreakDirectiveQualifyingPosition"
+          },
+          {
+            "$ref": "#/components/schemas/TieBreakDirectiveAdditionalFullRound"
+          },
+          {
+            "$ref": "#/components/schemas/TieBreakDirectiveTieBreakFlyoff"
+          },
+          {
+            "$ref": "#/components/schemas/TieBreakDirectiveClassificationRounds"
+          },
+          {
+            "$ref": "#/components/schemas/TieBreakDirectiveEqualPlaces"
+          },
+          {
+            "$ref": "#/components/schemas/TieBreakDirectiveUndefinedRequiresRuling"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "$kind",
+          "mapping": {
+            "bestDroppedScore": "#/components/schemas/TieBreakDirectiveBestDroppedScore",
+            "qualifyingPosition": "#/components/schemas/TieBreakDirectiveQualifyingPosition",
+            "additionalFullRound": "#/components/schemas/TieBreakDirectiveAdditionalFullRound",
+            "tiebreakFlyoff": "#/components/schemas/TieBreakDirectiveTieBreakFlyoff",
+            "classificationRounds": "#/components/schemas/TieBreakDirectiveClassificationRounds",
+            "equalPlaces": "#/components/schemas/TieBreakDirectiveEqualPlaces",
+            "undefinedRequiresRuling": "#/components/schemas/TieBreakDirectiveUndefinedRequiresRuling"
+          }
+        }
+      },
+      "TieBreakDirectiveAdditionalFullRound": {
+        "properties": {
+          "$kind": {
+            "enum": [
+              "additionalFullRound"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "TieBreakDirectiveBestDroppedScore": {
+        "properties": {
+          "$kind": {
+            "enum": [
+              "bestDroppedScore"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "TieBreakDirectiveClassificationRounds": {
+        "properties": {
+          "$kind": {
+            "enum": [
+              "classificationRounds"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "TieBreakDirectiveEqualPlaces": {
+        "properties": {
+          "$kind": {
+            "enum": [
+              "equalPlaces"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "TieBreakDirectiveQualifyingPosition": {
+        "required": [
+          "sourcePhaseOrdinal"
+        ],
+        "properties": {
+          "$kind": {
+            "enum": [
+              "qualifyingPosition"
+            ],
+            "type": "string"
+          },
+          "sourcePhaseOrdinal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "TieBreakDirectiveTieBreakFlyoff": {
+        "properties": {
+          "$kind": {
+            "enum": [
+              "tiebreakFlyoff"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "TieBreakDirectiveUndefinedRequiresRuling": {
+        "properties": {
+          "$kind": {
+            "enum": [
+              "undefinedRequiresRuling"
+            ],
+            "type": "string"
+          }
+        }
+      },
+      "TieBreakOutcomePlacing": {
+        "required": [
+          "competitorRef",
+          "placeInGroup"
+        ],
+        "type": "object",
+        "properties": {
+          "competitorRef": {
+            "$ref": "#/components/schemas/CompetitorId"
+          },
+          "placeInGroup": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "ValidityRule": {
+        "required": [
+          "minRounds"
+        ],
+        "type": "object",
+        "properties": {
+          "minRounds": {
+            "$ref": "#/components/schemas/NumberOrParam"
+          },
+          "minTasks": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "WithdrawCompetitor": {
+        "required": [
+          "competitionId",
+          "competitorId"
+        ],
+        "type": "object",
+        "properties": {
+          "competitionId": {
+            "$ref": "#/components/schemas/CompetitionId"
+          },
+          "competitorId": {
+            "$ref": "#/components/schemas/CompetitorId"
+          }
+        }
+      },
+      "WorkingTimeKind": {
+        "enum": [
+          "Fixed",
+          "UntilAllFlightsComplete"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "Paste a bearer JWT — an IdP-issued token, or a mock persona token printed at startup under Soarscore:Auth:Mode=mock.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Soarscore.Api"
+    }
+  ]
+}

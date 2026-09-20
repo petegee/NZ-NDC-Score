@@ -1,0 +1,306 @@
+:root {
+  font-family: system-ui, sans-serif;
+  line-height: 1.4;
+  color: #1a1a1a;
+  background: #f6f6f4;
+}
+
+main {
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+h1 {
+  font-size: 1.3rem;
+}
+
+button {
+  cursor: pointer;
+}
+
+label {
+  display: block;
+  margin: 0.5rem 0;
+}
+
+input,
+select {
+  display: block;
+  padding: 0.3rem;
+  margin-top: 0.15rem;
+  width: 100%;
+  max-width: 22rem;
+  box-sizing: border-box;
+}
+
+fieldset label input,
+fieldset label select {
+  display: inline-block;
+  width: auto;
+}
+
+.error-bar {
+  border: 1px solid #b3261e;
+  background: #fdecea;
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.warning-bar {
+  border: 1px solid #a2701e;
+  background: #fdf6e7;
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.hint {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+code {
+  background: #eceae6;
+  padding: 0 0.2rem;
+}
+
+.class-list {
+  list-style: none;
+  padding: 0;
+}
+
+.class-list li {
+  margin: 0.3rem 0;
+}
+
+.group-member {
+  display: inline-block;
+  margin-right: 0.6rem;
+  white-space: nowrap;
+}
+
+.class-list button {
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem;
+  background: #fff;
+  border: 1px solid #ccc;
+}
+
+table.grid {
+  border-collapse: collapse;
+  background: #fff;
+}
+
+table.grid th,
+table.grid td {
+  border: 1px solid #bbb;
+  padding: 0.25rem 0.4rem;
+  text-align: left;
+}
+
+/* Round groups (Functional Overview: columns are visually grouped by
+   group-round): a heavy rule opens each round block, a lighter rule opens
+   each flight-row group inside it, alternate rounds carry a tint. Sheet
+   cells go transparent so the tint reads through. The grid sizes to its
+   columns — no fixed width, no scrollbar. */
+.sheet-grid .round-start {
+  border-left: 3px solid #7a8a99;
+}
+
+.sheet-grid .flight-start {
+  border-left: 2px solid #c3cdd6;
+}
+
+.sheet-grid .round-alt {
+  background: #eef3f8;
+}
+
+.sheet-grid td input.cell,
+.sheet-grid td .flag-cell {
+  background: transparent;
+}
+
+/* Identity columns must hold a full name and a 5-digit MFNZ number. */
+.sheet-grid th.pilot-col,
+.sheet-grid td.pilot-col {
+  min-width: 14rem;
+}
+
+.sheet-grid th.mfnz-col,
+.sheet-grid td.mfnz-col {
+  min-width: 6.5rem;
+}
+
+.sheet-grid td.pilot-col input.cell,
+.sheet-grid td.mfnz-col input.cell {
+  max-width: none;
+  text-align: left;
+}
+
+/* Metric cells stay narrow so every round block fits without scrolling. */
+.sheet-grid th,
+.sheet-grid td {
+  padding: 0.15rem 0.25rem;
+}
+
+.sheet-grid th.col-head {
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: bottom;
+}
+
+.sheet-grid th.col-head small {
+  font-weight: 400;
+}
+
+.sheet-grid .target-label {
+  font-weight: 400;
+  color: #555;
+}
+
+.add-competitor {
+  margin: 0.5rem 0;
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.add-competitor button {
+  padding: 0.35rem 0.8rem;
+  background: #fff;
+  border: 1px solid #ccc;
+}
+
+input.cell {
+  width: 100%;
+  max-width: 4.25rem;
+  box-sizing: border-box;
+  padding: 0.15rem 0.25rem;
+  margin: 0;
+  text-align: right;
+}
+
+.flag-cell {
+  min-width: 2.2rem;
+  padding: 0.2rem 0.4rem;
+}
+
+.flag-blank {
+  color: #aaa;
+}
+
+.penalty-cell {
+  position: relative;
+}
+
+.penalty-cell .flag-cell {
+  text-align: left;
+}
+
+.penalty-menu {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  min-width: 14rem;
+  max-height: 14rem;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #999;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+
+.penalty-menu label {
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  align-items: baseline;
+  white-space: nowrap;
+  padding: 0.15rem 0;
+  margin: 0;
+}
+
+/* Menu controls must not inherit the form-wide block/100% width — it blows
+   every checkbox out to the menu's full width and scatters the text. */
+.penalty-menu input {
+  flex: 0 0 auto;
+  display: inline-block;
+  width: auto;
+  max-width: none;
+  margin-top: 0;
+}
+
+.penalty-menu label.assumed-value input {
+  width: 4.5rem;
+  text-align: left;
+}
+
+.penalty-list {
+  display: block;
+  color: #555;
+  max-width: 10rem;
+}
+
+.penalty-mark {
+  color: #c62828;
+  font-weight: 700;
+}
+
+.penalty-menu-head {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #666;
+  margin: 0.25rem 0 0.1rem;
+}
+
+.params-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.params-toggle {
+  min-width: 1.4rem;
+  padding: 0 0.35rem;
+  font-weight: 700;
+}
+
+button.reset {
+  background: #eee;
+  color: #333;
+}
+
+button.reset:disabled {
+  opacity: 0.5;
+}
+
+.progress li.progress-ok::marker {
+  content: '✓ ';
+}
+
+.progress li.progress-warn::marker {
+  content: '⚠ ';
+}
+
+.progress li.progress-error::marker {
+  content: '✗ ';
+}
+
+.calculate {
+  font-size: 1.05rem;
+  padding: 0.5rem 1.4rem;
+  background: #1a5d1a;
+  border-color: #1a5d1a;
+  color: #fff;
+}
+
+.calculate:disabled {
+  opacity: 0.6;
+}
+
+ol.progress {
+  font-size: 0.9rem;
+}
