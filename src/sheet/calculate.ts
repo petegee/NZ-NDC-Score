@@ -4,9 +4,12 @@ import type {
   CompetitionView,
   MeasuredValue,
 } from '../api/types'
+import { asNumber, measuredNumber } from '../api/types'
 import { ApiError } from '../api/wire'
+import { applyRounding } from '../grid/precision'
 import { parseCellText } from '../grid/parse'
 import type { GridColumn } from '../grid/schema'
+import { splitStopwatch } from '../grid/stopwatch'
 import {
   chainCommands,
   captureReducer,
@@ -26,6 +29,7 @@ import {
   PENALTIES_METRIC,
   phaseRoundsKind,
   phaseTasks,
+  resolveWorkingTime,
   sheetCellKey,
   sheetPenaltyKey,
   sheetRoundGrids,
@@ -76,6 +80,8 @@ export interface CalcReport {
   counts: { captured: number; amended: number; unchanged: number; failed: number; skippedNotDrawn: number; penalties: number }
   schedule: CalcScheduleEntry[]
   names: Record<string, string>
+  /** Sheet pilot row (1-based) → competitor id. */
+  rowCompetitors: Record<string, string>
 }
 
 export type ProgressSink = (p: CalcProgress) => void
@@ -112,19 +118,8 @@ export function sameMeasurement(
   const y = Number(parsed.number)
   if (!Number.isFinite(x) || !Number.isFinite(y)) return x === y
   const spec = column?.precision
-  const granularity = spec ? Number(spec.precision) : NaN
-  if (!spec || !Number.isFinite(granularity) || granularity <= 0) return x === y
-  const factor = 1 / granularity
-  const scale = (v: number): number => {
-    // kill float dust before the mode applies (the service computes in decimal)
-    const q = Number((v * factor).toPrecision(12))
-    return spec.mode === 'Ceiling'
-      ? Math.ceil(q)
-      : spec.mode === 'HalfUp'
-        ? Math.round(q)
-        : Math.trunc(q)
-  }
-  return scale(x) === scale(y)
+  if (!spec) return x === y
+  return applyRounding(x, spec) === applyRounding(y, spec)
 }
 
 interface PumpCounts {
@@ -134,6 +129,118 @@ interface PumpCounts {
   failed: number
   skippedNotDrawn: number
   penalties: number
+}
+
+interface RebuiltCells {
+  entries: CaptureState['entries']
+  cells: CaptureState['cells']
+}
+
+/** One stopwatch cell: the organiser's single launch-to-landing reading for a
+ * flightTime + overflySeconds task. The rulebook's split runs here, at the
+ * task's working time, before any command is queued — overfly =
+ * max(0, total − workingTime) per the overfly metric's declaration (whole
+ * seconds), flight = min(total, workingTime) per the flight metric's
+ * declaration (e.g. F3J 0.1 s HalfUp, F5J/F5L whole seconds). A zero overfly
+ * is the declared absence (whenNotRecorded) — it is not captured, but a
+ * previously captured overfly that the corrected reading erases is amended
+ * to the assumed value: absence cannot unrecord an event, an explicit value
+ * can. All other metrics are untouched. */
+function splitStopwatchCell(
+  rg: ReturnType<typeof sheetRoundGrids>[number],
+  col: GridColumn,
+  total: MeasuredValue,
+  key: string,
+  competitorId: string,
+  flightSequence: number,
+  roundState: string,
+  phaseOrdinal: number,
+  roundOrdinal: number,
+  fold: CompetitionView,
+  sheet: SheetState,
+  rebuilt: RebuiltCells,
+  captureState: CaptureState,
+  counts: PumpCounts,
+  cellErrors: { key: string; error: string }[],
+  nextCommandId: () => number,
+  needReopen: () => void,
+): void {
+  const pair = rg.grid.stopwatch
+  const overflyCol = rg.grid.columns.find((c) => c.stopwatchRole === 'overfly')
+  if (!pair || !overflyCol) {
+    cellErrors.push({ key, error: 'stopwatch column without its overfly metric' })
+    counts.failed++
+    return
+  }
+  const workingTime = resolveWorkingTime(
+    rg.grid.timing,
+    rg.perRoundParams,
+    sheet.params,
+    fold.competition.parameterBindings,
+    phaseOrdinal,
+    roundOrdinal,
+  )
+  if (workingTime === undefined) {
+    cellErrors.push({
+      key,
+      error: `no working time to split the stopwatch reading against (declare it in the task or bind the parameter)`,
+    })
+    counts.failed++
+    return
+  }
+  const seconds = asNumber(total)
+  if (seconds === undefined || !Number.isFinite(seconds) || seconds < 0) {
+    cellErrors.push({ key, error: 'not a stopwatch time' })
+    counts.failed++
+    return
+  }
+  const split = splitStopwatch(seconds, workingTime, col, overflyCol)
+  const flightValue = measuredNumber(split.flight)
+  const overflyValue = measuredNumber(split.overfly)
+  const flightCommitted = rebuilt.cells[wireCellKey(competitorId, flightSequence, pair.flightMetric)]
+  const overflyCommitted = rebuilt.cells[wireCellKey(competitorId, flightSequence, pair.overflyMetric)]
+  const assumed = overflyCol.whenNotRecorded
+  // A zero excess means the declared absence — blank is already the truth.
+  const overflyAssumed =
+    assumed !== undefined && sameMeasurement(assumed, overflyValue, overflyCol)
+  const overflyTarget = overflyAssumed && assumed ? assumed : overflyValue
+  const flightUnchanged = sameMeasurement(flightCommitted?.value, flightValue, col)
+  const overflyUnchanged = overflyAssumed
+    ? !overflyCommitted || sameMeasurement(overflyCommitted.value, assumed, overflyCol)
+    : sameMeasurement(overflyCommitted?.value, overflyValue, overflyCol)
+  if (flightUnchanged && overflyUnchanged) {
+    counts.unchanged++
+    return
+  }
+  if (roundState === 'Complete' && ((flightCommitted && !flightUnchanged) || (overflyCommitted && !overflyUnchanged))) {
+    needReopen()
+  }
+  captureState.queue.push(
+    ...chainCommands(
+      wireCellKey(competitorId, flightSequence, pair.flightMetric),
+      competitorId,
+      flightSequence,
+      pair.flightMetric,
+      flightValue,
+      captureState.entries,
+      nextCommandId,
+      flightCommitted ? { reason: CORRECTION_REASON } : undefined,
+    ),
+  )
+  if (!overflyUnchanged) {
+    captureState.queue.push(
+      ...chainCommands(
+        wireCellKey(competitorId, flightSequence, pair.overflyMetric),
+        competitorId,
+        flightSequence,
+        pair.overflyMetric,
+        overflyTarget,
+        captureState.entries,
+        nextCommandId,
+        overflyCommitted ? { reason: CORRECTION_REASON } : undefined,
+      ),
+    )
+  }
 }
 
 /** Runs one task-round group's queued commands to a terminal state through
@@ -200,6 +307,9 @@ export async function runCalculate(
   const counts: PumpCounts = { captured: 0, amended: 0, unchanged: 0, failed: 0, skippedNotDrawn: 0, penalties: 0 }
   const schedule: CalcScheduleEntry[] = []
   const names: Record<string, string> = {}
+  /** Sheet pilot row (1-based) → competitor id — lets the results table read
+   * key-metric cells back for each competitor (the fold is the truth). */
+  const rowCompetitors: Record<string, string> = {}
   const report: CalcReport = {
     ok: false,
     competitionId: null,
@@ -209,6 +319,7 @@ export async function runCalculate(
     counts,
     schedule,
     names,
+    rowCompetitors,
   }
   const emit: ProgressSink = (p) => {
     steps.push(p)
@@ -371,6 +482,7 @@ export async function runCalculate(
     if (competitorId) {
       competitorByRow.set(index, competitorId)
       names[competitorId] = sheet.pilots[index].name.trim()
+      rowCompetitors[String(index + 1)] = competitorId
     }
   }
 
@@ -552,11 +664,38 @@ export async function runCalculate(
                 }
                 continue
               }
+              // The stopwatch split owns the overfly metric — it is never
+              // captured directly (validation refuses text in its cells).
+              if (col.stopwatchRole === 'overfly') continue
               if (!text.trim()) continue
               const parsed = parseCellText(text.trim(), col.kind, col.unit)
               if (!parsed.ok) {
                 cellErrors.push({ key, error: parsed.error })
                 counts.failed++
+                continue
+              }
+              if (col.stopwatchRole === 'total') {
+                splitStopwatchCell(
+                  rg,
+                  col,
+                  parsed.value,
+                  key,
+                  competitorId,
+                  flightRow.sequence,
+                  taskRound.state,
+                  phase.ordinal,
+                  round.ordinal,
+                  fold,
+                  sheet,
+                  rebuilt,
+                  captureState,
+                  counts,
+                  cellErrors,
+                  nextCommandId,
+                  () => {
+                    needReopen = true
+                  },
+                )
                 continue
               }
               const wireKey = wireCellKey(competitorId, flightRow.sequence, col.metric)

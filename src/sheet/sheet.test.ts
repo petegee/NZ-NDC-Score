@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ClassDefinition } from '../api/types'
+import type { ClassDefinition, ParameterBindingFold } from '../api/types'
 import fixture from '../test/fixtures/85b-nz-f3k-ndc.json'
 import {
   initialSheet,
@@ -7,6 +7,7 @@ import {
   parseParamInput,
   parsePenaltyText,
   penaltyOptions,
+  resolveWorkingTime,
   sheetCellKey,
   sheetCellParts,
   sheetPenaltyKey,
@@ -180,5 +181,48 @@ describe('persistence', () => {
     const s = f3kSheet()
     localStorage.setItem('ndcscore.sheet.v1', JSON.stringify(s))
     expect(loadSheet().classContentHash).toBe('hash-1')
+  })
+})
+
+describe('resolveWorkingTime — what the stopwatch split divides at', () => {
+  const taskB = f3k.phases[0].tasks.find((t) => t.code === 'B')!
+  const taskD = f3k.phases[0].tasks.find((t) => t.code === 'D')!
+  const wtParam = f3k.parameters!.find((p) => p.name === 'workingTime.B')!
+  const noBindings: ParameterBindingFold[] = []
+
+  it('uses a declared literal working time as-is', () => {
+    expect(resolveWorkingTime(taskD.timing, [], {}, noBindings, 0, 1)).toBe(600)
+  })
+
+  it('resolves a parameter reference from a scoped round binding first', () => {
+    const bindings: ParameterBindingFold[] = [
+      {
+        parameterName: 'workingTime.B',
+        boundValue: { kind: 'Number', number: 480 },
+        by: 'CD',
+        at: '',
+        phaseOrdinal: 0,
+        roundOrdinal: 2,
+      },
+      {
+        parameterName: 'workingTime.B',
+        boundValue: { kind: 'Number', number: 420 },
+        by: 'CD',
+        at: '',
+      },
+    ]
+    expect(resolveWorkingTime(taskB.timing, [wtParam], {}, bindings, 0, 2)).toBe(480)
+    expect(resolveWorkingTime(taskB.timing, [wtParam], {}, bindings, 0, 3)).toBe(420)
+  })
+
+  it('falls back to the sheet parameter input (declared default on blank)', () => {
+    expect(resolveWorkingTime(taskB.timing, [wtParam], {}, noBindings, 0, 1)).toBe(600)
+    expect(resolveWorkingTime(taskB.timing, [wtParam], { 'workingTime.B': '420' }, noBindings, 0, 1)).toBe(420)
+  })
+
+  it('a working time that resolves to nothing usable is undefined', () => {
+    const noDefault = { name: 'workingTime.B', kind: 'Number', boundAt: 'PerRound' } as never
+    expect(resolveWorkingTime(taskB.timing, [noDefault], {}, noBindings, 0, 1)).toBeUndefined()
+    expect(resolveWorkingTime(taskB.timing, [], {}, noBindings, 0, 1)).toBeUndefined()
   })
 })

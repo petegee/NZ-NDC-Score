@@ -1,9 +1,18 @@
-import type { ClassDefinition, MeasuredValue, Parameter, PenaltyDefinition } from '../api/types'
+import type {
+  ClassDefinition,
+  MeasuredValue,
+  Parameter,
+  ParameterBindingFold,
+  PenaltyDefinition,
+  TaskTiming,
+} from '../api/types'
+import { asNumber } from '../api/types'
 import { parseCellText } from '../grid/parse'
 import {
   defaultRounds,
   phaseSetupInfo,
   taskGridFor,
+  workingTimeView,
   type FlightRowSpec,
   type TaskGridSchema,
 } from '../grid/schema'
@@ -190,6 +199,44 @@ export function paramConsumedByTask(param: Parameter, taskRef: string): boolean 
 
 function perRoundParamsFor(definition: ClassDefinition, taskRef: string): Parameter[] {
   return paramsBoundAt(definition, 'PerRound').filter((p) => paramConsumedByTask(p, taskRef))
+}
+
+/** The task's effective working time in seconds — what the stopwatch split
+ * divides at. A declared literal is used as-is; a parameter reference
+ * resolves from the bound value (this round's scoped binding, then an
+ * unscoped one), then the sheet's parameter input (declared default and
+ * blank rules apply). A working time that resolves to nothing usable leaves
+ * the split undefined — the capture step reports it per cell. */
+export function resolveWorkingTime(
+  timing: TaskTiming,
+  params: Parameter[],
+  paramText: Record<string, string>,
+  bindings: ParameterBindingFold[],
+  phaseOrdinal: number,
+  roundOrdinal: number,
+): number | undefined {
+  const wt = workingTimeView(timing)
+  if (typeof wt.seconds === 'number') return wt.seconds
+  const name = wt.param
+  if (!name) return undefined
+  const sameParam = (b: ParameterBindingFold): boolean => b.parameterName === name
+  const scoped = bindings.find(
+    (b) => sameParam(b) && b.phaseOrdinal === phaseOrdinal && b.roundOrdinal === roundOrdinal,
+  )
+  const unscoped = bindings.find(
+    (b) => sameParam(b) && b.phaseOrdinal == null && b.roundOrdinal == null,
+  )
+  for (const bound of [scoped?.boundValue, unscoped?.boundValue]) {
+    if (!bound) continue
+    const n = asNumber(bound)
+    if (n !== undefined && Number.isFinite(n) && n > 0) return n
+  }
+  const param = params.find((p) => p.name === name)
+  if (!param) return undefined
+  const parsed = parseParamInput(param, paramText[name] ?? '')
+  if (!parsed.ok) return undefined
+  const n = asNumber(parsed.value)
+  return n !== undefined && Number.isFinite(n) && n > 0 ? n : undefined
 }
 
 export function sheetRoundGrids(
@@ -408,6 +455,16 @@ export function validateSheet(state: SheetState): SheetValidation {
     if (!rg) continue
     const col = rg.grid.columns.find((c) => c.metric === parts.metric)
     if (!col) continue
+    // The stopwatch split owns the overfly metric — direct entry is stale
+    // data from before the stopwatch column (or a hand edit) and is refused
+    // with a pointer, never silently ignored.
+    if (col.stopwatchRole === 'overfly') {
+      cellErrors.push({
+        key,
+        error: `${col.label} is split from the stopwatch reading — clear this cell`,
+      })
+      continue
+    }
     const parse = parseCellText(text, col.kind, col.unit)
     if (!parse.ok && parse.error !== 'blank') {
       cellErrors.push({ key, error: parse.error })

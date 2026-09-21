@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { createApi } from '../api/client'
 import type { ClassDefinitionSummary } from '../api/types'
+import { isNdcClass } from './classes'
 import { formatValue } from '../grid/parse'
 import type { FlightRowSpec, GridColumn } from '../grid/schema'
 import {
@@ -50,7 +51,7 @@ export function SheetPage({ base }: { base: string }) {
   useEffect(() => {
     api
       .findClassDefinitions({ activeOnly: true })
-      .then((res) => setClassList(res.value))
+      .then((res) => setClassList(res.value.filter(isNdcClass)))
       .catch((error: unknown) => setLoadError(errorText(error)))
   }, [api])
 
@@ -298,6 +299,10 @@ export function SheetPage({ base }: { base: string }) {
           names={new Map(Object.entries(results.names))}
           schedule={results.schedule}
           signal={resultsSignal}
+          grids={grids}
+          cells={state.cells}
+          rowCompetitors={results.rowCompetitors}
+          rowCountPerRound={rowCountPerRound}
         />
       )}
     </main>
@@ -399,11 +404,13 @@ function SheetGrid({
             </td>
             {grids.map((rg, i) => {
               const keyCols = shownColumns(rg)
-              // One drop-list entry per non-key metric, definition order, no repeats.
+              // One drop-list entry per non-key metric, definition order, no
+              // repeats. The split's overfly metric is not a compliance fact
+              // the CD records — it is derived from the stopwatch reading.
               const assumedCols = [
                 ...new Map(
                   rg.grid.columns
-                    .filter((c) => c.whenNotRecorded !== undefined)
+                    .filter((c) => c.whenNotRecorded !== undefined && c.stopwatchRole !== 'overfly')
                     .map((c) => [c.metric, c] as const),
                 ).values(),
               ]
@@ -488,9 +495,15 @@ function SheetGrid({
 /** Key metric columns — the only columns that get grid real estate. A metric
  * with a declared whenNotRecorded assumption is non-key: blank means the
  * assumption, so only an exception is ever recorded, and it is captured in
- * the round's drop list instead of its own column (Functional Overview). */
+ * the round's drop list instead of its own column (Functional Overview). The
+ * stopwatch split's overfly metric is owned by the split at Calculate and
+ * never takes direct entry, so it gets no column either — the round shows the
+ * one Flight time column (the organiser's stopwatch reading) where the class
+ * declares the flightTime + overflySeconds pair. */
 function shownColumns(rg: ReturnType<typeof sheetRoundGrids>[number]): GridColumn[] {
-  return rg.grid.columns.filter((c) => c.whenNotRecorded === undefined)
+  return rg.grid.columns.filter(
+    (c) => c.whenNotRecorded === undefined && c.stopwatchRole !== 'overfly',
+  )
 }
 
 /** Round-group separation (Functional Overview: columns are visually grouped

@@ -8,6 +8,7 @@ import type {
   TaskTiming,
   WorkingTimeKind,
 } from '../api/types'
+import { stopwatchPair, type StopwatchPair } from './stopwatch'
 
 /** The wire form of the domain's NumberOrParam: a literal decimal, or a
  * reference to a class parameter by name. */
@@ -23,6 +24,11 @@ export interface GridColumn {
   precision?: { mode: string; precision: number }
   /** Declared absence semantics: a blank cell resolves to this value. */
   whenNotRecorded?: MeasuredValue
+  /** Stopwatch pair membership (derived, never class-branched): `total`
+   * columns carry the organiser's single stopwatch reading and are split at
+   * the task's working time before capture; `overfly` columns are owned by
+   * that split and never take direct entry. */
+  stopwatchRole?: 'total' | 'overfly'
 }
 
 export interface FlightRowSpec {
@@ -47,6 +53,9 @@ export interface TaskGridSchema {
    * renders them inside the round's infraction drop list (per flight, as the
    * logical negation) instead of one column per flight — real estate. */
   zeroFlightFlags: string[]
+  /** The task declares the flightTime + overflySeconds pair: one stopwatch
+   * column replaces the two inputs, split client-side at working time. */
+  stopwatch?: StopwatchPair
 }
 
 export interface PhaseSetupInfo {
@@ -130,7 +139,11 @@ function rowsForCount(count: number | undefined, task: TaskDefinition): FlightRo
   })
 }
 
+/** Under stopwatch entry the flightTime column carries the one reading the
+ * organiser takes — it keeps its humanised Flight time label; the split owns
+ * the overfly metric, which never gets real estate. */
 export function deriveColumns(task: TaskDefinition): GridColumn[] {
+  const pair = stopwatchPair(task)
   return task.metrics.map((m: MetricDefinition) => ({
     metric: m.name,
     label: humanise(m.name),
@@ -141,6 +154,13 @@ export function deriveColumns(task: TaskDefinition): GridColumn[] {
       ? { mode: String(m.precision.mode), precision: Number(m.precision.precision) }
       : undefined,
     whenNotRecorded: m.whenNotRecorded ?? undefined,
+    stopwatchRole: pair
+      ? m.name === pair.flightMetric
+        ? ('total' as const)
+        : m.name === pair.overflyMetric
+          ? ('overfly' as const)
+          : undefined
+      : undefined,
   }))
 }
 
@@ -172,6 +192,7 @@ export function deriveTaskGrid(task: TaskDefinition): TaskGridSchema {
     columns: deriveColumns(task),
     flightRows: deriveFlightRows(task),
     zeroFlightFlags: zeroFlightFlagMetrics(task.flightValidWhen),
+    stopwatch: stopwatchPair(task),
   }
 }
 

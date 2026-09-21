@@ -33,6 +33,9 @@ Read the docs/soaring-domain-glossary.md for an overview of the key nouns of the
    scores). Nothing but the sheet text is client state. Corrections are
    entered freely — overtype and recalculate: amends carry an auto-filled
    reason, never overwrites, and the organiser is never asked for one.
+5. **No Changes to Soarscore** Under no circumstance do you add/alter/delete
+   any file in the Soarscore API/Engine itself. You can report that you wanted
+   to, and why only.
 
 ## Board
 

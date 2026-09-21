@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ClassDefinition } from '../api/types'
 import type { GridColumn } from '../grid/schema'
 import fixture from '../test/fixtures/85b-nz-f3k-ndc.json'
+import f3jFixture from '../test/fixtures/50-f3j.json'
 import {
   CORRECTION_REASON,
   REOPEN_REASON,
@@ -19,6 +20,7 @@ import {
 } from './sheet'
 
 const f3k = fixture as unknown as ClassDefinition
+const f3j = f3jFixture as unknown as ClassDefinition
 
 function baseSheet(): SheetState {
   let s = sheetReducer(initialSheet(), { type: 'classChosen', contentHash: 'hash', definition: f3k })
@@ -295,5 +297,188 @@ describe('reasons', () => {
     expect(CORRECTION_REASON).toBeTruthy()
     expect(REOPEN_REASON).toBeTruthy()
     expect(CORRECTION_REASON).not.toBe(REOPEN_REASON)
+  })
+})
+
+// --- stopwatch entry: one reading, split at working time (F3J task D) ---
+
+function f3jSheet(): SheetState {
+  let s = sheetReducer(initialSheet(), {
+    type: 'classChosen',
+    contentHash: 'hash-f3j',
+    definition: f3j,
+  })
+  s = sheetReducer(s, { type: 'setField', field: 'contestName', value: 'Thermal NDC' })
+  s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
+  s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-20' })
+  s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
+  s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
+  s = sheetReducer(s, { type: 'addPilot' })
+  s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu', mfnz: '2345' } })
+  return s
+}
+
+function f3jReading(
+  sheet: SheetState,
+  pilotRow: number,
+  stopwatch: string,
+  landing: string,
+): SheetState {
+  let s = sheetReducer(sheet, {
+    type: 'setCell',
+    key: sheetCellKey(1, pilotRow, 1, 'flightTime'),
+    text: stopwatch,
+  })
+  s = sheetReducer(s, {
+    type: 'setCell',
+    key: sheetCellKey(1, pilotRow, 1, 'landingDistance'),
+    text: landing,
+  })
+  return s
+}
+
+describe('calculate — stopwatch split (F3J task D, 600 s working time)', () => {
+  it('a flight inside working time captures only the flight time — overfly omitted', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    const sheet = f3jReading(f3jSheet(), 1, '9:50', '12.3')
+    const report = await runCalculate(api, sheet, noProgress)
+
+    expect(report.ok).toBe(true)
+    expect(report.counts.captured).toBe(2)
+    const entry = fake.competitionByName('Thermal NDC', '2026-09-20')!.entries[0]
+    expect(entry.flights.get(1)!.get('flightTime')).toMatchObject({ kind: 'Number', number: 590 })
+    expect(entry.flights.get(1)!.has('overflySeconds')).toBe(false)
+  })
+
+  it('a flight over working time splits: 604 → flight 600, overfly 4', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    const sheet = f3jReading(f3jSheet(), 1, '10:04', '9.9')
+    const report = await runCalculate(api, sheet, noProgress)
+
+    expect(report.ok).toBe(true)
+    expect(report.counts.captured).toBe(3)
+    const flight = fake.competitionByName('Thermal NDC', '2026-09-20')!.entries[0].flights.get(1)!
+    expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 600 })
+    expect(flight.get('overflySeconds')).toMatchObject({ kind: 'Number', number: 4 })
+  })
+
+  it('a fractional excess truncates to whole overfly seconds: 604.4 → 600/4', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    const sheet = f3jReading(f3jSheet(), 1, '604.4', '9.9')
+    await runCalculate(api, sheet, noProgress)
+
+    const flight = fake.competitionByName('Thermal NDC', '2026-09-20')!.entries[0].flights.get(1)!
+    expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 600 })
+    expect(flight.get('overflySeconds')).toMatchObject({ kind: 'Number', number: 4 })
+  })
+
+  it('the in-working part rounds per the flight metric (0.1 s HalfUp)', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    // 9:49.96 = 589.96 s → HalfUp to 590.0; still no overfly.
+    const sheet = f3jReading(f3jSheet(), 1, '9:49.96', '12.3')
+    const report = await runCalculate(api, sheet, noProgress)
+
+    expect(report.ok).toBe(true)
+    const flight = fake.competitionByName('Thermal NDC', '2026-09-20')!.entries[0].flights.get(1)!
+    expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 590 })
+    expect(flight.has('overflySeconds')).toBe(false)
+  })
+
+  it('re-running an unchanged sheet is a no-op — the split pair counts once', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    const sheet = f3jReading(f3jSheet(), 1, '10:04', '9.9')
+    await runCalculate(api, sheet, noProgress)
+
+    const before = JSON.stringify(fake.competitions)
+    const report = await runCalculate(api, sheet, noProgress)
+    expect(report.ok).toBe(true)
+    expect(report.counts).toEqual({
+      captured: 0,
+      amended: 0,
+      unchanged: 2, // the stopwatch cell (flight + overfly) and the landing cell
+      failed: 0,
+      skippedNotDrawn: 0,
+      penalties: 0,
+    })
+    expect(JSON.stringify(fake.competitions)).toBe(before)
+  })
+
+  it('correcting below working time amends the flight and erases the captured overfly', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    const base = f3jSheet()
+    await runCalculate(api, f3jReading(f3jReading(base, 1, '10:04', '9.9'), 2, '9:55', '11.1'), noProgress)
+    const comp = fake.competitionByName('Thermal NDC', '2026-09-20')!
+    expect(comp.rounds[0].state).toBe('Complete')
+
+    const edited = f3jReading(f3jReading(base, 1, '9:50', '9.9'), 2, '9:55', '11.1')
+    const report = await runCalculate(api, edited, noProgress)
+
+    expect(report.counts.amended).toBe(2)
+    expect(report.counts.captured).toBe(0)
+    const flight = comp.entries[0].flights.get(1)!
+    expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 590 })
+    expect(flight.get('overflySeconds')).toMatchObject({ kind: 'Number', number: 0 })
+    expect(comp.entries[0].amendments.map((a) => a.metric).sort()).toEqual([
+      'flightTime',
+      'overflySeconds',
+    ])
+    expect(comp.rounds[0].state).toBe('Complete')
+    // the completed round was reopened for the correction, then re-completed
+    expect(report.steps.some((s) => s.step === 'complete' && s.status === 'ok')).toBe(true)
+  })
+
+  it('a growing overfly on a correction captures the new excess', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    await runCalculate(api, f3jReading(f3jSheet(), 1, '9:50', '9.9'), noProgress)
+    const comp = fake.competitionByName('Thermal NDC', '2026-09-20')!
+
+    const report = await runCalculate(api, f3jReading(f3jSheet(), 1, '605.7', '9.9'), noProgress)
+    expect(report.counts.amended).toBe(1) // flightTime 590 → 600
+    expect(report.counts.captured).toBe(1) // overflySeconds 5
+    const flight = comp.entries[0].flights.get(1)!
+    expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 600 })
+    expect(flight.get('overflySeconds')).toMatchObject({ kind: 'Number', number: 5 })
+  })
+
+  it('refuses direct entry in the split-owned overfly cell', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    const bad = sheetReducer(f3jReading(f3jSheet(), 1, '10:04', '9.9'), {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 1, 'overflySeconds'),
+      text: '4',
+    })
+    const report = await runCalculate(api, bad, noProgress)
+
+    expect(report.ok).toBe(false)
+    expect(report.cellErrors).toEqual([
+      {
+        key: sheetCellKey(1, 1, 1, 'overflySeconds'),
+        error: 'Overfly seconds is split from the stopwatch reading — clear this cell',
+      },
+    ])
+    expect(fake.competitions).toHaveLength(0)
+  })
+
+  it('both pilots capture and the round completes on the split values', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    let sheet = f3jReading(f3jSheet(), 1, '9:50', '12.3')
+    sheet = f3jReading(sheet, 2, '10:02', '7.7')
+    const report = await runCalculate(api, sheet, noProgress)
+
+    expect(report.ok).toBe(true)
+    const comp = fake.competitionByName('Thermal NDC', '2026-09-20')!
+    expect(comp.rounds[0].state).toBe('Complete')
+    expect(comp.entries[0].flights.get(1)!.get('flightTime')).toMatchObject({ number: 590 })
+    expect(comp.entries[1].flights.get(1)!.get('flightTime')).toMatchObject({ number: 600 })
+    expect(comp.entries[1].flights.get(1)!.get('overflySeconds')).toMatchObject({ number: 2 })
   })
 })

@@ -2,9 +2,151 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SheetPage } from './SheetPage'
+import { isNdcClass } from './classes'
 
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
+}
+
+/** An NDC-format F5J definition: the task declares the flightTime +
+ * overflySeconds pair, so the sheet shows the flight-time column for the one
+ * reading. */
+const f5jNdcDefinition = {
+  name: 'RC Electric Powered Thermal Duration Gliders (NDC format)',
+  faiDesignation: 'F5J',
+  version: '1',
+  parameters: [],
+  penalties: [
+    {
+      infractionType: 'launchedOutsideWindow',
+      exclusionGroups: [],
+      accrual: 'OncePerAttempt',
+      effects: [{ effect: 'DeductPoints', points: 100 }],
+    },
+  ],
+  phases: [
+    {
+      type: 'Preliminary',
+      ordinal: 0,
+      rounds: { kind: 'FixedSequence', tasksPerRound: 1, requireDistinctTaskPerRound: false, maxRounds: 2 },
+      validity: {},
+      tasks: [
+        {
+          code: 'D',
+          name: 'Duration',
+          metrics: [
+            {
+              name: 'flightTime',
+              kind: 'Number',
+              unit: 's',
+              declaredBeforeLaunch: false,
+              precision: { mode: 'Truncate', precision: 1 },
+            },
+            {
+              name: 'landingDistance',
+              kind: 'Number',
+              unit: 'm',
+              declaredBeforeLaunch: false,
+              precision: { mode: 'Truncate', precision: 0.1 },
+            },
+            {
+              name: 'overflySeconds',
+              kind: 'Number',
+              unit: 's',
+              declaredBeforeLaunch: false,
+              precision: { mode: 'Truncate', precision: 1 },
+              whenNotRecorded: { kind: 'Number', number: 0 },
+            },
+            {
+              name: 'landedWithin75m',
+              kind: 'Flag',
+              declaredBeforeLaunch: false,
+              whenNotRecorded: { kind: 'Flag', flag: true },
+            },
+          ],
+          flights: { $kind: 'last' },
+          timing: { kind: 'Fixed', workingTime: 600 },
+          flightValidWhen: {
+            $kind: 'allOf',
+            children: [
+              {
+                $kind: 'comparison',
+                leftMetricRef: 'landedWithin75m',
+                op: 'EqualTo',
+                rightValue: { kind: 'Flag', flag: true },
+              },
+            ],
+          },
+          normalise: {},
+        },
+      ],
+    },
+  ],
+}
+
+/** The F3K-NDC shape the original stub returned, extracted so the stub can
+ * also serve the F5J-NDC stopwatch definition. */
+const f3kNdcDefinition = {
+  name: 'RC Hand-Launch Gliders (NDC format)',
+  version: '1',
+  parameters: [],
+  penalties: [
+    {
+      infractionType: 'landedInSafetyArea',
+      exclusionGroups: [],
+      accrual: 'OncePerAttempt',
+      effects: [{ effect: 'DeductPoints', points: 100 }],
+    },
+  ],
+  phases: [
+    {
+      type: 'Preliminary',
+      ordinal: 0,
+      rounds: { kind: 'FixedSequence', tasksPerRound: 1, requireDistinctTaskPerRound: false, maxRounds: 4 },
+      validity: {},
+      tasks: [
+        {
+          code: 'D',
+          name: 'Duration',
+          metrics: [
+            { name: 'flightTime', kind: 'Number', unit: 's', declaredBeforeLaunch: false },
+            {
+              name: 'landedWithinWindow',
+              kind: 'Flag',
+              declaredBeforeLaunch: false,
+              whenNotRecorded: { kind: 'Flag', flag: true },
+            },
+            {
+              name: 'launchedInWorkingTime',
+              kind: 'Flag',
+              declaredBeforeLaunch: false,
+              whenNotRecorded: { kind: 'Flag', flag: true },
+            },
+          ],
+          flights: { $kind: 'lastN', count: 2, targetValues: [60, 120] },
+          timing: { kind: 'Fixed', workingTime: 300 },
+          flightValidWhen: {
+            $kind: 'allOf',
+            children: [
+              {
+                $kind: 'comparison',
+                leftMetricRef: 'landedWithinWindow',
+                op: 'EqualTo',
+                rightValue: { kind: 'Flag', flag: true },
+              },
+              {
+                $kind: 'comparison',
+                leftMetricRef: 'launchedInWorkingTime',
+                op: 'EqualTo',
+                rightValue: { kind: 'Flag', flag: true },
+              },
+            ],
+          },
+          normalise: {},
+        },
+      ],
+    },
+  ],
 }
 
 function stubFetch(): typeof fetch {
@@ -19,71 +161,41 @@ function stubFetch(): typeof fetch {
           version: '1',
           publishedAt: '2026-01-01T00:00:00Z',
         },
+        {
+          id: 'a2',
+          contentHash: 'hash-x5j',
+          name: 'X5J Electric',
+          faiDesignation: 'X5J',
+          version: '1',
+          publishedAt: '2026-01-01T00:00:00Z',
+        },
+        {
+          id: 'a3',
+          contentHash: 'hash-radian',
+          name: 'NZ Radian',
+          version: '1',
+          publishedAt: '2026-01-01T00:00:00Z',
+        },
+        {
+          id: 'a4',
+          contentHash: 'hash-other',
+          name: 'ALES 200',
+          version: '1',
+          publishedAt: '2026-01-01T00:00:00Z',
+        },
+        {
+          id: 'a5',
+          contentHash: 'hash-f5j-ndc',
+          name: 'RC Electric Powered Thermal Duration Gliders (NDC format)',
+          faiDesignation: 'F5J',
+          version: '1',
+          publishedAt: '2026-01-01T00:00:00Z',
+        },
       ])
     }
     if (url.includes('/class-definition')) {
-      return jsonResponse({
-        name: 'RC Hand-Launch Gliders (NDC format)',
-        version: '1',
-        parameters: [],
-        penalties: [
-          {
-            infractionType: 'landedInSafetyArea',
-            exclusionGroups: [],
-            accrual: 'OncePerAttempt',
-            effects: [{ effect: 'DeductPoints', points: 100 }],
-          },
-        ],
-        phases: [
-          {
-            type: 'Preliminary',
-            ordinal: 0,
-            rounds: { kind: 'FixedSequence', tasksPerRound: 1, requireDistinctTaskPerRound: false, maxRounds: 4 },
-            validity: {},
-            tasks: [
-              {
-                code: 'D',
-                name: 'Duration',
-                metrics: [
-                  { name: 'flightTime', kind: 'Number', unit: 's', declaredBeforeLaunch: false },
-                  {
-                    name: 'landedWithinWindow',
-                    kind: 'Flag',
-                    declaredBeforeLaunch: false,
-                    whenNotRecorded: { kind: 'Flag', flag: true },
-                  },
-                  {
-                    name: 'launchedInWorkingTime',
-                    kind: 'Flag',
-                    declaredBeforeLaunch: false,
-                    whenNotRecorded: { kind: 'Flag', flag: true },
-                  },
-                ],
-                flights: { $kind: 'lastN', count: 2, targetValues: [60, 120] },
-                timing: { kind: 'Fixed', workingTime: 300 },
-                flightValidWhen: {
-                  $kind: 'allOf',
-                  children: [
-                    {
-                      $kind: 'comparison',
-                      leftMetricRef: 'landedWithinWindow',
-                      op: 'EqualTo',
-                      rightValue: { kind: 'Flag', flag: true },
-                    },
-                    {
-                      $kind: 'comparison',
-                      leftMetricRef: 'launchedInWorkingTime',
-                      op: 'EqualTo',
-                      rightValue: { kind: 'Flag', flag: true },
-                    },
-                  ],
-                },
-                normalise: {},
-              },
-            ],
-          },
-        ],
-      })
+      const body = url.includes('hash-f5j-ndc') ? f5jNdcDefinition : f3kNdcDefinition
+      return jsonResponse(body)
     }
     return jsonResponse({ value: null })
   }) as unknown as typeof fetch
@@ -92,6 +204,27 @@ function stubFetch(): typeof fetch {
 describe('SheetPage', () => {
   beforeEach(() => {
     localStorage.clear()
+  })
+
+  it('offers NZ NDC contest types only: NDC-named, X5J and NZ Radian', async () => {
+    vi.stubGlobal('fetch', stubFetch())
+    try {
+      render(<SheetPage base="http://api.test" />)
+
+      await waitFor(() => expect(screen.getByText(/RC Hand-Launch Gliders/)).toBeInTheDocument())
+      const options = [...screen.getByLabelText(/Class/).querySelectorAll('option')].map(
+        (o) => o.textContent ?? '',
+      )
+      expect(options).toEqual([
+        '— pick the adopted class —',
+        'RC Hand-Launch Gliders (NDC format) · v1',
+        'X5J — X5J Electric · v1',
+        'NZ Radian · v1',
+        'F5J — RC Electric Powered Thermal Duration Gliders (NDC format) · v1',
+      ])
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('renders the single sheet: header, pilots, grid and Calculate', async () => {
@@ -286,5 +419,46 @@ describe('SheetPage', () => {
     } finally {
       vi.unstubAllGlobals()
     }
+  })
+
+  it('an overfly task keeps the Flight time column and drops the overfly input', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', stubFetch())
+    try {
+      render(<SheetPage base="http://api.test" />)
+      await waitFor(() => expect(screen.getByText(/Thermal Duration Gliders/)).toBeInTheDocument())
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f5j-ndc')
+
+      // Under stopwatch entry the flight-time column carries the single
+      // reading; the split-owned overfly metric never takes real estate.
+      await waitFor(() => expect(screen.getAllByText(/Flight time/).length).toBeGreaterThan(0))
+      expect(screen.queryByText('Stopwatch')).not.toBeInTheDocument()
+      expect(screen.queryByText('Overfly seconds')).not.toBeInTheDocument()
+      expect(screen.getAllByText(/Landing distance/i).length).toBeGreaterThan(0)
+
+      // The compliance menu still offers the landed flag, but the overfly
+      // metric is owned by the stopwatch split — no input for it.
+      await user.click(screen.getAllByRole('button', { name: 'Penalties' })[0])
+      expect(screen.queryByLabelText(/Overfly seconds/i)).not.toBeInTheDocument()
+      expect(screen.getByLabelText(/not landed within 75/i)).toBeInTheDocument()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  describe('isNdcClass', () => {
+    it.each([
+      ['ALES 200 (NDC format)', undefined, true],
+      ['Thermal Duration (NDC)', '', true],
+      ['X5J Electric', 'X5J', true],
+      ['NZ Radian', null, true],
+      ['ALES Radian', undefined, true],
+      ['ales radian (glider)', undefined, true],
+      ['ALES 200', undefined, false],
+      ['F5J Electric', 'F5J', false],
+      ['Thermal Duration', '', false],
+    ])('%s (%s) → %s', (name, faiDesignation, expected) => {
+      expect(isNdcClass({ name, faiDesignation })).toBe(expected)
+    })
   })
 })

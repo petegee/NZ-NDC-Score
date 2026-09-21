@@ -2,16 +2,23 @@ import { useEffect, useState } from 'react'
 import type { Api } from '../api/client'
 import type { CompetitionScore, GroupScore } from '../api/types'
 import type { CalcScheduleEntry } from './calculate'
-import { ScoreTable, Standings } from '../scoring/ScoreTable'
+import type { SheetRoundGrid } from './sheet'
+import { ResultsTable } from './ResultsTable'
 
-/** Read-back only (law 2): every number here comes verbatim from
- * GET /task-round-result and GET /competition-result. */
+/** Read-back only (law 2): every score here comes verbatim from
+ * GET /task-round-result and GET /competition-result, in one table —
+ * a row per competitor, and per group-round the round's key metrics
+ * (echoed from the sheet text) then the raw score, then totals. */
 export function SheetResults({
   api,
   competitionId,
   names,
   schedule,
   signal,
+  grids,
+  cells,
+  rowCompetitors,
+  rowCountPerRound,
 }: {
   api: Api
   competitionId: string
@@ -19,6 +26,10 @@ export function SheetResults({
   schedule: CalcScheduleEntry[]
   /** Bump to refetch (Calculate or manual refresh). */
   signal: number
+  grids?: SheetRoundGrid[]
+  cells?: Record<string, string>
+  rowCompetitors?: Record<string, string>
+  rowCountPerRound?: number[]
 }) {
   const [refresh, setRefresh] = useState(0)
   const [standings, setStandings] = useState<CompetitionScore | null>(null)
@@ -73,32 +84,30 @@ export function SheetResults({
   return (
     <section className="results">
       <h2>Results</h2>
-      <p className="hint">Provisional — straight from the service, verbatim.</p>
-      {schedule.map((entry) => {
-        const k = `${entry.roundOrdinal}:${entry.taskRoundOrdinal}`
-        return (
-          <div key={k}>
-            <h3>
-              Round {entry.roundOrdinal} · task <code>{entry.taskRef}</code> · {entry.state}
-            </h3>
-            {roundErrors[k] ? (
-              <p role="alert">{roundErrors[k]}</p>
-            ) : roundScores[k] ? (
-              <ScoreTable scores={roundScores[k]} names={names} />
-            ) : (
-              <p className="hint">Loading scores…</p>
-            )}
-          </div>
-        )
-      })}
-      <h3>Competition standings</h3>
-      {standingsError ? (
-        <p role="alert">{standingsError}</p>
-      ) : standings ? (
-        <Standings standings={standings} names={names} />
-      ) : (
-        <p className="hint">Loading standings…</p>
-      )}
+      <p className="hint">
+        Provisional — scores straight from the service, verbatim; metric readings echoed from your
+        sheet.
+      </p>
+      {Object.entries(roundErrors).map(([k, msg]) => (
+        <p key={k} role="alert">
+          Round {k}: {msg}
+        </p>
+      ))}
+      {standingsError ? <p role="alert">{standingsError}</p> : null}
+      {standings || Object.keys(roundScores).length > 0 ? (
+        <ResultsTable
+          schedule={schedule}
+          roundScores={roundScores}
+          standings={standings}
+          names={names}
+          grids={grids}
+          cells={cells}
+          rowCompetitors={rowCompetitors}
+          rowCountPerRound={rowCountPerRound}
+        />
+      ) : !standingsError ? (
+        <p className="hint">Loading scores…</p>
+      ) : null}
       <button
         type="button"
         onClick={() => {

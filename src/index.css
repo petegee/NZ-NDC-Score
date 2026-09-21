@@ -123,16 +123,25 @@ table.grid td {
 /* Identity columns must hold a full name and a 5-digit MFNZ number. */
 .sheet-grid th.pilot-col,
 .sheet-grid td.pilot-col {
-  min-width: 14rem;
+  min-width: 8.4rem;
 }
 
 .sheet-grid th.mfnz-col,
 .sheet-grid td.mfnz-col {
-  min-width: 6.5rem;
+  min-width: 3.25rem;
 }
 
-.sheet-grid td.pilot-col input.cell,
+/* Auto table layout sizes the column from the input's intrinsic width
+   (default size=20), not from the cell's min-width — so give identity
+   inputs definite widths. */
+.sheet-grid td.pilot-col input.cell {
+  width: 7.9rem;
+  max-width: none;
+  text-align: left;
+}
+
 .sheet-grid td.mfnz-col input.cell {
+  width: 5.5rem;
   max-width: none;
   text-align: left;
 }
@@ -156,6 +165,12 @@ table.grid td {
 .sheet-grid .target-label {
   font-weight: 400;
   color: #555;
+}
+
+/* Results table (results.tsx): numbers right-aligned like sheet cells. */
+.results-grid td.num,
+.results-grid th.num {
+  text-align: right;
 }
 
 .add-competitor {
