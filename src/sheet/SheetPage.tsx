@@ -107,11 +107,13 @@ export function SheetPage({ base }: { base: string }) {
 
   return (
     <main className="sheet-page">
-      <h1>NdcScore</h1>
+      <h1>NZ NDC Score Spreadsheet</h1>
       <p className="hint">
-        The evening scoresheet: type anywhere, any time. <strong>Calculate</strong> sends the whole
-        sheet to the service and brings the scores back.
+        A spreadsheet like app for New Zealand NDC RC soaring contest organisers to enter and calculate scores: type anywhere, any time. <strong>Calculate</strong> sends the whole
+        sheet to the SoarScore scoring service and displays the scores and placings.
       </p>
+
+      <p>Powered by Soarscore https://github.com/petegee/Soarscore2</p>
 
       {loadError && <p className="error-bar">{loadError}</p>}
 
@@ -123,7 +125,7 @@ export function SheetPage({ base }: { base: string }) {
             value={state.classContentHash ?? ''}
             onChange={(e) => void pickClass(e.target.value)}
           >
-            <option value="">— pick the adopted class —</option>
+            <option value="">— pick the NDC class —</option>
             {(classList ?? []).map((c) => (
               <option key={c.contentHash} value={c.contentHash}>
                 {c.faiDesignation ? `${c.faiDesignation} — ` : ''}
