@@ -309,7 +309,7 @@ describe('SheetPage', () => {
         (o) => o.textContent ?? '',
       )
       expect(options).toEqual([
-        '— pick the adopted class —',
+        '— pick the NDC class —',
         'RC Hand-Launch Gliders (NDC format) · v2',
         'X5J — X5J Electric · v1',
         'NZ Radian · v1',
@@ -326,7 +326,7 @@ describe('SheetPage', () => {
     try {
       render(<SheetPage base="http://api.test" />)
 
-      expect(screen.getByRole('heading', { name: 'NdcScore' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'NZ NDC Score Spreadsheet' })).toBeInTheDocument()
       await waitFor(() => expect(screen.getByText(/RC Hand-Launch Gliders/)).toBeInTheDocument())
 
       await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k-v2')
@@ -359,7 +359,7 @@ describe('SheetPage', () => {
       await user.click(toggle)
       expect(screen.getByLabelText(/Landed In Safety Area/)).toBeInTheDocument()
 
-      await user.click(screen.getByRole('heading', { name: 'NdcScore' }))
+      await user.click(screen.getByRole('heading', { name: 'NZ NDC Score Spreadsheet' }))
       expect(screen.queryByLabelText(/Landed In Safety Area/)).not.toBeInTheDocument()
 
       await user.click(toggle)
