@@ -56,6 +56,19 @@ the verified wire facts.
    `npm run smoke` (round-trips a running API), and
    `npm run test:live` for the scripted live-API flows.
 
+## Deploy
+
+Same CI/CD shape as Soarscore (`build-and-test.yml`): push/PR to `master` runs
+lint, build and test; pushes additionally deploy to Fly.io. One-time setup:
+
+1. `fly apps create ndcscore` (adjust `app` in `fly.toml` if you chose a
+   generated name).
+2. Add the `FLY_IO_DEPLOY_TOKEN` secret to this repo (`fly tokens deploy`).
+3. Tell the service to allow this origin: `SOARSCORE_CORS_ORIGINS` on the
+   Soarscore deployment must include `https://ndcscore.fly.dev`.
+
+`VITE_API_BASE` is baked at build time from the `[build.args]` in `fly.toml`.
+
 ## Board
 
 `kanban/` — backlog / in-progress / blocked / completed, plus
