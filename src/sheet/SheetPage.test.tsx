@@ -10,7 +10,8 @@ function jsonResponse(body: unknown): Response {
 
 /** An NDC-format F5J definition: the task declares the flightTime +
  * overflySeconds pair, so the sheet shows the flight-time column for the one
- * reading. */
+ * reading. The flight gate reads the start height's recordedness
+ * (`isRecorded`, 5.5.11.7 e) — no flag, no second input. */
 const f5jNdcDefinition = {
   name: 'RC Electric Powered Thermal Duration Gliders (NDC format)',
   faiDesignation: 'F5J',
@@ -43,6 +44,13 @@ const f5jNdcDefinition = {
               precision: { mode: 'Truncate', precision: 1 },
             },
             {
+              name: 'startHeight',
+              kind: 'Number',
+              unit: 'm',
+              declaredBeforeLaunch: false,
+              precision: { mode: 'Truncate', precision: 1 },
+            },
+            {
               name: 'landingDistance',
               kind: 'Number',
               unit: 'm',
@@ -69,6 +77,16 @@ const f5jNdcDefinition = {
           flightValidWhen: {
             $kind: 'allOf',
             children: [
+              {
+                $kind: 'comparison',
+                leftMetricRef: 'overflySeconds',
+                op: 'LessOrEqual',
+                rightValue: { kind: 'Number', number: 60 },
+              },
+              {
+                $kind: 'isRecorded',
+                metricRef: 'startHeight',
+              },
               {
                 $kind: 'comparison',
                 leftMetricRef: 'landedWithin75m',
@@ -149,6 +167,70 @@ const f3kNdcDefinition = {
   ],
 }
 
+/** An X5J-shaped definition: no declared penalties, but the task carries
+ * optional metrics — flags and a value whose blank resolves to a
+ * whenNotRecorded assumption. The compliance drop list records their
+ * exceptions, so the round still shows a penalties/compliance column. */
+const x5jDefinition = {
+  name: 'X5J Electric',
+  faiDesignation: 'X5J',
+  version: '1',
+  parameters: [],
+  penalties: [],
+  phases: [
+    {
+      type: 'Preliminary',
+      ordinal: 0,
+      rounds: { kind: 'FixedSequence', tasksPerRound: 1, requireDistinctTaskPerRound: false, maxRounds: 4 },
+      validity: {},
+      tasks: [
+        {
+          code: 'D',
+          name: 'Glide Duration',
+          metrics: [
+            { name: 'glideTime', kind: 'Number', unit: 's', declaredBeforeLaunch: false },
+            {
+              name: 'motorRestartRunTime',
+              kind: 'Number',
+              unit: 's',
+              declaredBeforeLaunch: false,
+              whenNotRecorded: { kind: 'Number', number: 0 },
+            },
+            {
+              name: 'motorRestarted',
+              kind: 'Flag',
+              declaredBeforeLaunch: false,
+              whenNotRecorded: { kind: 'Flag', flag: false },
+            },
+            {
+              name: 'airborneAtRoundEnd',
+              kind: 'Flag',
+              declaredBeforeLaunch: false,
+              whenNotRecorded: { kind: 'Flag', flag: false },
+            },
+            {
+              name: 'landedWithin75m',
+              kind: 'Flag',
+              declaredBeforeLaunch: false,
+              whenNotRecorded: { kind: 'Flag', flag: true },
+            },
+            { name: 'landingDistance', kind: 'Number', unit: 'm', declaredBeforeLaunch: false },
+          ],
+          flights: { $kind: 'last' },
+          timing: { kind: 'Fixed', workingTime: 600, maxLaunches: 1 },
+          flightValidWhen: {
+            $kind: 'comparison',
+            leftMetricRef: 'landedWithin75m',
+            op: 'EqualTo',
+            rightValue: { kind: 'Flag', flag: true },
+          },
+          normalise: {},
+        },
+      ],
+    },
+  ],
+}
+
 function stubFetch(): typeof fetch {
   return vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
@@ -160,6 +242,13 @@ function stubFetch(): typeof fetch {
           name: 'RC Hand-Launch Gliders (NDC format)',
           version: '1',
           publishedAt: '2026-01-01T00:00:00Z',
+        },
+        {
+          id: 'a1b',
+          contentHash: 'hash-f3k-v2',
+          name: 'RC Hand-Launch Gliders (NDC format)',
+          version: '2',
+          publishedAt: '2026-02-01T00:00:00Z',
         },
         {
           id: 'a2',
@@ -194,7 +283,11 @@ function stubFetch(): typeof fetch {
       ])
     }
     if (url.includes('/class-definition')) {
-      const body = url.includes('hash-f5j-ndc') ? f5jNdcDefinition : f3kNdcDefinition
+      const body = url.includes('hash-f5j-ndc')
+        ? f5jNdcDefinition
+        : url.includes('hash-x5j')
+          ? x5jDefinition
+          : f3kNdcDefinition
       return jsonResponse(body)
     }
     return jsonResponse({ value: null })
@@ -217,7 +310,7 @@ describe('SheetPage', () => {
       )
       expect(options).toEqual([
         '— pick the adopted class —',
-        'RC Hand-Launch Gliders (NDC format) · v1',
+        'RC Hand-Launch Gliders (NDC format) · v2',
         'X5J — X5J Electric · v1',
         'NZ Radian · v1',
         'F5J — RC Electric Powered Thermal Duration Gliders (NDC format) · v1',
@@ -236,7 +329,7 @@ describe('SheetPage', () => {
       expect(screen.getByRole('heading', { name: 'NdcScore' })).toBeInTheDocument()
       await waitFor(() => expect(screen.getByText(/RC Hand-Launch Gliders/)).toBeInTheDocument())
 
-      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k')
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k-v2')
       // The grid derives from the definition: flight-time column headers appear.
       await waitFor(() => expect(screen.getAllByText(/Flight time/).length).toBeGreaterThan(0))
       expect(screen.getByRole('button', { name: 'Calculate' })).toBeInTheDocument()
@@ -258,10 +351,10 @@ describe('SheetPage', () => {
     try {
       render(<SheetPage base="http://api.test" />)
       await waitFor(() => expect(screen.getByText(/RC Hand-Launch Gliders/)).toBeInTheDocument())
-      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k')
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k-v2')
       await waitFor(() => expect(screen.getAllByText(/Flight time/).length).toBeGreaterThan(0))
 
-      const toggle = screen.getAllByRole('button', { name: 'Penalties' })[0]
+      const toggle = screen.getAllByRole('button', { name: 'More' })[0]
       expect(screen.queryByLabelText(/Landed In Safety Area/)).not.toBeInTheDocument()
       await user.click(toggle)
       expect(screen.getByLabelText(/Landed In Safety Area/)).toBeInTheDocument()
@@ -283,7 +376,7 @@ describe('SheetPage', () => {
     try {
       render(<SheetPage base="http://api.test" />)
       await waitFor(() => expect(screen.getByText(/RC Hand-Launch Gliders/)).toBeInTheDocument())
-      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k')
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k-v2')
       await waitFor(() => expect(screen.getAllByText(/Flight time/).length).toBeGreaterThan(0))
 
       // The covered flag columns are gone from the grid — only flight time remains.
@@ -291,7 +384,7 @@ describe('SheetPage', () => {
       expect(screen.queryByText('Launched in working time')).not.toBeInTheDocument()
       expect(screen.getAllByText(/Flight time/).length).toBeGreaterThan(0)
 
-      await user.click(screen.getAllByRole('button', { name: 'Penalties' })[0])
+      await user.click(screen.getAllByRole('button', { name: 'More' })[0])
       const outside = screen.getByLabelText(/launched outside working time/i)
       expect(outside).not.toBeChecked()
       await user.click(outside)
@@ -301,10 +394,10 @@ describe('SheetPage', () => {
       const stored = JSON.parse(localStorage.getItem('ndcscore.sheet.v1') ?? '{}')
       expect(stored.cells['r1|p1|f1|launchedInWorkingTime']).toBe('n')
       expect(stored.cells['r1|p1|f2|launchedInWorkingTime']).toBe('n')
-      // the cell button shows the red tick with the mark count, not the list
+      // the cell button shows the mark count, not the list
       expect(
-        screen.getAllByRole('button', { name: 'Penalties' })[0].textContent,
-      ).toContain('✔ 1')
+        screen.getAllByRole('button', { name: 'More' })[0].textContent,
+      ).toContain('1')
 
       // one entry per item: no flight-number text, nothing duplicated
       const menu = document.querySelector('.penalty-menu')
@@ -317,6 +410,42 @@ describe('SheetPage', () => {
     }
   })
 
+  it('a class with no declared penalties still shows the column when its task has optional metrics (X5J)', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', stubFetch())
+    try {
+      render(<SheetPage base="http://api.test" />)
+      await waitFor(() => expect(screen.getByText(/X5J Electric/)).toBeInTheDocument())
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-x5j')
+      await waitFor(() => expect(screen.getAllByText(/Glide Duration/).length).toBeGreaterThan(0))
+
+      // Zero penalties + four optional metrics → the compliance column
+      // renders in every round, and the menu is one flat list of them.
+      expect(screen.getAllByText('More')).toHaveLength(4)
+      await user.click(screen.getAllByRole('button', { name: 'More' })[0])
+      const menu = document.querySelector('.penalty-menu')
+      const labels = [...(menu?.querySelectorAll('label') ?? [])].map((l) => l.textContent ?? '')
+      expect(labels).toHaveLength(4)
+      expect(screen.getByLabelText('Motor restart run time')).toBeInTheDocument()
+      expect(screen.getByLabelText('Motor restarted')).toBeInTheDocument()
+      expect(screen.getByLabelText('Airborne at round end')).toBeInTheDocument()
+      expect(screen.getByLabelText(/not landed within 75/i)).toBeInTheDocument()
+
+      // The value option pre-fills its assumption as the placeholder.
+      expect(screen.getByLabelText('Motor restart run time')).toHaveAttribute('placeholder', '0')
+
+      // Ticking a compliance flag writes the exception onto every flight row.
+      await user.click(screen.getByLabelText(/not landed within 75/i))
+      const stored = JSON.parse(localStorage.getItem('ndcscore.sheet.v1') ?? '{}')
+      expect(stored.cells['r1|p1|f1|landedWithin75m']).toBe('n')
+      expect(
+        screen.getAllByRole('button', { name: 'More' })[0].textContent,
+      ).toContain('1')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('reset clears the whole sheet after confirmation', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', stubFetch())
@@ -324,7 +453,7 @@ describe('SheetPage', () => {
     try {
       render(<SheetPage base="http://api.test" />)
       await waitFor(() => expect(screen.getByText(/RC Hand-Launch Gliders/)).toBeInTheDocument())
-      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k')
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k-v2')
       await waitFor(() => expect(document.querySelectorAll('tbody tr').length).toBe(10))
 
       await user.type(screen.getAllByPlaceholderText('Pilot name')[0], 'Someone')
@@ -350,7 +479,7 @@ describe('SheetPage', () => {
     try {
       render(<SheetPage base="http://api.test" />)
       await waitFor(() => expect(screen.getByText(/RC Hand-Launch Gliders/)).toBeInTheDocument())
-      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k')
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k-v2')
       await waitFor(() => expect(document.querySelectorAll('tbody tr').length).toBe(10))
 
       // 10 pilots, one <tr> each; 2 flight rows + penalty per round →
@@ -367,16 +496,16 @@ describe('SheetPage', () => {
     }
   })
 
-  it('groups columns by round: each round block ends with its own Penalties head, aligned over its cells', async () => {
+  it('groups columns by round: each round block ends with its own More head, aligned over its cells', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', stubFetch())
     try {
       render(<SheetPage base="http://api.test" />)
       await waitFor(() => expect(screen.getByText(/RC Hand-Launch Gliders/)).toBeInTheDocument())
-      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k')
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k-v2')
       await waitFor(() => expect(document.querySelectorAll('tbody tr').length).toBe(10))
 
-      // Column-head row: 4 rounds × (F1, F2, Penalties) — each penalty head
+      // Column-head row: 4 rounds × (F1, F2, More) — each More head
       // closes its own round block instead of trailing the sheet. Flights are
       // told apart by target label only — no F-numbers over the columns.
       const headEls = [...document.querySelectorAll('thead tr:nth-child(2) th')]
@@ -388,7 +517,7 @@ describe('SheetPage', () => {
         expect(heads[base]).toContain('Flight time')
         expect(heads[base + 1]).toContain('120 s target')
         expect(heads[base + 1]).toContain('Flight time')
-        expect(heads[base + 2]).toBe('Penalties')
+        expect(heads[base + 2]).toBe('More')
       }
 
       // Body order matches: each round block is [flightTime, flightTime, penalties].
@@ -438,8 +567,31 @@ describe('SheetPage', () => {
 
       // The compliance menu still offers the landed flag, but the overfly
       // metric is owned by the stopwatch split — no input for it.
-      await user.click(screen.getAllByRole('button', { name: 'Penalties' })[0])
+      await user.click(screen.getAllByRole('button', { name: 'More' })[0])
       expect(screen.queryByLabelText(/Overfly seconds/i)).not.toBeInTheDocument()
+      expect(screen.getByLabelText(/not landed within 75/i)).toBeInTheDocument()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('a recordedness-gated metric stays a demanded column, never a drop-list entry', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', stubFetch())
+    try {
+      render(<SheetPage base="http://api.test" />)
+      await waitFor(() => expect(screen.getByText(/Thermal Duration Gliders/)).toBeInTheDocument())
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f5j-ndc')
+
+      // Start height gets real estate — blank resolves at Calculate (the
+      // flight zeroes through the gate, 5.5.11.7 e), typed scores normally.
+      // One input, no second tick.
+      await waitFor(() => expect(screen.getAllByText(/Start height/).length).toBeGreaterThan(0))
+
+      // The compliance menu never offers it: its absence is the gate's false,
+      // not an exception the CD records.
+      await user.click(screen.getAllByRole('button', { name: 'More' })[0])
+      expect(screen.queryByLabelText(/start height/i)).not.toBeInTheDocument()
       expect(screen.getByLabelText(/not landed within 75/i)).toBeInTheDocument()
     } finally {
       vi.unstubAllGlobals()

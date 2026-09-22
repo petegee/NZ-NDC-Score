@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ClassDefinition } from '../api/types'
 import alesNdc from '../test/fixtures/81-nz-m-ndc.json'
 import f3kNdc from '../test/fixtures/85b-nz-f3k-ndc.json'
+import f5jNdc from '../test/fixtures/85c-nz-f5j-ndc.json'
 import {
   defaultRounds,
   deriveFlightRows,
@@ -13,6 +14,7 @@ import {
 
 const ales = alesNdc as ClassDefinition
 const f3k = f3kNdc as ClassDefinition
+const f5j = f5jNdc as ClassDefinition
 
 describe('ALES 200 (NDC format) fixture', () => {
   const phase0 = phaseSetupInfo(ales, 0)
@@ -126,5 +128,41 @@ describe('F3K NDC fixture', () => {
     }
     // The M-class task zeroes on a different declared flag.
     expect(deriveTaskGrid(taskByRef(ales, 'D')!).zeroFlightFlags).toEqual(['landedWithin75m'])
+  })
+})
+
+describe('F5J NDC fixture (recordedness gate)', () => {
+  it('keeps startHeight a demanded key column — no assumption, no flag', () => {
+    const grid = deriveTaskGrid(taskByRef(f5j, 'D')!)
+    expect(grid.columns.map((c) => c.metric)).toEqual([
+      'flightTime',
+      'startHeight',
+      'landingDistance',
+      'overflySeconds',
+      'touchedByCompetitor',
+      'landedWithin75m',
+    ])
+    const height = grid.columns.find((c) => c.metric === 'startHeight')
+    expect(height?.whenNotRecorded).toBeUndefined()
+  })
+
+  it('derives only the flag zero-flight metrics: recordedness is not one', () => {
+    // 5.5.11.7 e cancels a flight whose AMRT records no Start Height data —
+    // the gate child is `isRecorded`, not a flag comparison to tick, so
+    // startHeight never becomes a drop-list entry: blank resolves at
+    // Calculate (the flight zeroes), typed scores normally. One input.
+    // landedWithin75m stays a flag gate (NZ.0.3 h) — an assumed metric.
+    expect(deriveTaskGrid(taskByRef(f5j, 'D')!).zeroFlightFlags).toEqual(['landedWithin75m'])
+  })
+
+  it('derives 1 flight row per round (last selection)', () => {
+    const grid = deriveTaskGrid(taskByRef(f5j, 'D')!)
+    expect(grid.flightRows).toHaveLength(1)
+    expect(grid.flightRows[0]).toMatchObject({ sequence: 1, dynamic: false })
+  })
+
+  it('declares the flightTime + overflySeconds stopwatch pair', () => {
+    const grid = deriveTaskGrid(taskByRef(f5j, 'D')!)
+    expect(grid.stopwatch).toEqual({ flightMetric: 'flightTime', overflyMetric: 'overflySeconds' })
   })
 })

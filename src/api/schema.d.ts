@@ -2514,7 +2514,7 @@ export interface components {
         };
         /** @enum {unknown} */
         PhaseType: "Preliminary" | "Flyoff";
-        Predicate: components["schemas"]["PredicateComparison"] | components["schemas"]["PredicateAllOf"];
+        Predicate: components["schemas"]["PredicateComparison"] | components["schemas"]["PredicateAllOf"] | components["schemas"]["PredicateIsRecorded"];
         PredicateAllOf: {
             /** @enum {string} */
             $kind?: "allOf";
@@ -2527,6 +2527,11 @@ export interface components {
             op: components["schemas"]["Comparator"];
             rightMetricRef?: null | string;
             rightValue?: null | components["schemas"]["MeasuredValue"];
+        };
+        PredicateIsRecorded: {
+            /** @enum {string} */
+            $kind?: "isRecorded";
+            metricRef: string;
         };
         PrescribedGroup: {
             competitors: components["schemas"]["CompetitorId"][];

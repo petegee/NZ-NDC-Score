@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { createApi } from '../api/client'
 import type { ClassDefinitionSummary } from '../api/types'
-import { isNdcClass } from './classes'
+import { isNdcClass, latestPerClass } from './classes'
 import { formatValue } from '../grid/parse'
 import type { FlightRowSpec, GridColumn } from '../grid/schema'
 import {
@@ -51,7 +51,7 @@ export function SheetPage({ base }: { base: string }) {
   useEffect(() => {
     api
       .findClassDefinitions({ activeOnly: true })
-      .then((res) => setClassList(res.value.filter(isNdcClass)))
+      .then((res) => setClassList(latestPerClass(res.value.filter(isNdcClass))))
       .catch((error: unknown) => setLoadError(errorText(error)))
   }, [api])
 
@@ -322,7 +322,6 @@ function SheetGrid({
   penalties: PenaltyOption[]
   dispatch: (action: Parameters<typeof sheetReducer>[1]) => void
 }) {
-  const withPenaltyColumn = penalties.length > 0
   return (
     <table className="grid sheet-grid">
       <thead>
@@ -337,7 +336,7 @@ function SheetGrid({
             <th
               key={rg.roundOrdinal}
               colSpan={
-                rowCountPerRound[i] * shownColumns(rg).length + (withPenaltyColumn ? 1 : 0)
+                rowCountPerRound[i] * shownColumns(rg).length + (withComplianceColumn(rg, penalties) ? 1 : 0)
               }
               className={roundCellClassName(i, true)}
             >
@@ -370,12 +369,12 @@ function SheetGrid({
                     </th>
                   )),
                 ).flat()}
-                {withPenaltyColumn && (
+                {withComplianceColumn(rg, penalties) && (
                   <th
                     key={`${rg.roundOrdinal}:penalties`}
                     className={roundCellClassName(i, cols.length === 0, false, 'col-head')}
                   >
-                    Penalties
+                    More
                   </th>
                 )}
               </Fragment>
@@ -404,16 +403,6 @@ function SheetGrid({
             </td>
             {grids.map((rg, i) => {
               const keyCols = shownColumns(rg)
-              // One drop-list entry per non-key metric, definition order, no
-              // repeats. The split's overfly metric is not a compliance fact
-              // the CD records — it is derived from the stopwatch reading.
-              const assumedCols = [
-                ...new Map(
-                  rg.grid.columns
-                    .filter((c) => c.whenNotRecorded !== undefined && c.stopwatchRole !== 'overfly')
-                    .map((c) => [c.metric, c] as const),
-                ).values(),
-              ]
               return (
                 <Fragment key={rg.roundOrdinal}>
                   {Array.from({ length: rowCountPerRound[i] }, (_, rowIdx) => {
@@ -445,13 +434,13 @@ function SheetGrid({
                       </td>
                     ))
                   })}
-                  {withPenaltyColumn && (
+                  {withComplianceColumn(rg, penalties) && (
                     <td className={roundCellClassName(i, keyCols.length === 0)}>
                       <PenaltyCell
                         text={state.cells[sheetPenaltyKey(rg.roundOrdinal, pi + 1)] ?? ''}
                         options={penalties}
                         flightRows={visibleFlightRows(rg.grid, rg.roundOrdinal, pi + 1, state.cells)}
-                        assumed={assumedCols}
+                        assumed={assumedColumns(rg)}
                         cellText={(sequence, metric) =>
                           state.cells[sheetCellKey(rg.roundOrdinal, pi + 1, sequence, metric)] ?? ''
                         }
@@ -506,6 +495,29 @@ function shownColumns(rg: ReturnType<typeof sheetRoundGrids>[number]): GridColum
   )
 }
 
+/** Non-key metrics of the round — one drop-list entry per metric, definition
+ * order, no repeats. The split's overfly metric is not a compliance fact the
+ * CD records — it is derived from the stopwatch reading. */
+function assumedColumns(rg: ReturnType<typeof sheetRoundGrids>[number]): GridColumn[] {
+  return [
+    ...new Map(
+      rg.grid.columns
+        .filter((c) => c.whenNotRecorded !== undefined && c.stopwatchRole !== 'overfly')
+        .map((c) => [c.metric, c] as const),
+    ).values(),
+  ]
+}
+
+/** The round shows a penalties/compliance column when it has anything to
+ * record: the class's declared penalties plus the round's optional metrics
+ * (flags and values whose blank resolves to a whenNotRecorded assumption). */
+function withComplianceColumn(
+  rg: ReturnType<typeof sheetRoundGrids>[number],
+  penalties: PenaltyOption[],
+): boolean {
+  return penalties.length > 0 || assumedColumns(rg).length > 0
+}
+
 /** Round-group separation (Functional Overview: columns are visually grouped
  * by group-round): a heavy rule opens each round block, a lighter rule opens
  * each flight-row group inside it, alternate rounds are tinted. `isBlockStart`
@@ -537,11 +549,11 @@ function negateFlagLabel(label: string): string {
   return negated === label ? `not ${label.toLowerCase()}` : negated
 }
 
-/** One round-level multi-select: the class's declared penalties plus one
- * entry per non-key metric (each carries a whenNotRecorded assumption).
- * Compliance is whole-round — a tick applies the exception to every flight
- * row, a value applies to every flight row — so each item lists once, with
- * no flight-number text. The sheet text is the only state. */
+/** One round-level multi-select: the class's declared penalties followed by
+ * one entry per non-key metric (each carries a whenNotRecorded assumption),
+ * one flat list. Compliance is whole-round — a tick applies the exception to
+ * every flight row, a value applies to every flight row — so each item lists
+ * once, with no flight-number text. The sheet text is the only state. */
 function PenaltyCell({
   text,
   options,
@@ -602,65 +614,55 @@ function PenaltyCell({
       <button
         type="button"
         aria-expanded={open}
-        aria-label="Penalties"
+        aria-label="More"
         className={`flag-cell ${count === 0 ? 'flag-blank' : ''}`}
         title={options.map((o) => o.label).join('\n') || 'The adopted class declares no penalties'}
         disabled={options.length === 0 && assumed.length === 0}
         onClick={() => setOpen(!open)}
       >
-        {count === 0 ? '–' : <span className="penalty-mark">✔ {count}</span>}
+        {count === 0 ? '...' : <span className="penalty-mark">{count}</span>}
       </button>
       {open && (
         <div className="penalty-menu">
-          {options.length > 0 && (
-            <>
-              <div className="penalty-menu-head">Round penalties</div>
-              {options.map((o) => (
-                <label key={o.infractionType}>
+          {options.map((o) => (
+            <label key={o.infractionType}>
+              <input
+                type="checkbox"
+                checked={selected.includes(o.infractionType)}
+                onChange={() => toggle(o.infractionType)}
+              />
+              {o.label}
+            </label>
+          ))}
+          {assumed.map((col) => {
+            const assumption = col.whenNotRecorded
+            if (!assumption) return null
+            if (col.kind === 'Flag') {
+              const exception = assumption.flag ? 'n' : 'y'
+              return (
+                <label key={col.metric}>
                   <input
                     type="checkbox"
-                    checked={selected.includes(o.infractionType)}
-                    onChange={() => toggle(o.infractionType)}
+                    checked={isFlagged(col)}
+                    onChange={() => setAll(col, isFlagged(col) ? '' : exception)}
                   />
-                  {o.label}
+                  {assumption.flag ? negateFlagLabel(col.label) : col.label}
                 </label>
-              ))}
-            </>
-          )}
-          {assumed.length > 0 && (
-            <>
-              <div className="penalty-menu-head">Flight compliance</div>
-              {assumed.map((col) => {
-                const assumption = col.whenNotRecorded
-                if (!assumption) return null
-                if (col.kind === 'Flag') {
-                  const exception = assumption.flag ? 'n' : 'y'
-                  return (
-                    <label key={col.metric}>
-                      <input
-                        type="checkbox"
-                        checked={isFlagged(col)}
-                        onChange={() => setAll(col, isFlagged(col) ? '' : exception)}
-                      />
-                      {assumption.flag ? negateFlagLabel(col.label) : col.label}
-                    </label>
-                  )
-                }
-                const first = flightRows[0]
-                return (
-                  <label key={col.metric} className="assumed-value">
-                    <span>{col.label}</span>
-                    <input
-                      inputMode={col.kind === 'Number' ? 'decimal' : undefined}
-                      value={first ? cellText(first.sequence, col.metric) : ''}
-                      placeholder={formatValue(assumption, col.unit)}
-                      onChange={(e) => setAll(col, e.target.value)}
-                    />
-                  </label>
-                )
-              })}
-            </>
-          )}
+              )
+            }
+            const first = flightRows[0]
+            return (
+              <label key={col.metric} className="assumed-value">
+                <span>{col.label}</span>
+                <input
+                  inputMode={col.kind === 'Number' ? 'decimal' : undefined}
+                  value={first ? cellText(first.sequence, col.metric) : ''}
+                  placeholder={formatValue(assumption, col.unit)}
+                  onChange={(e) => setAll(col, e.target.value)}
+                />
+              </label>
+            )
+          })}
         </div>
       )}
     </div>

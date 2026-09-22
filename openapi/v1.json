@@ -2361,7 +2361,7 @@
           null
         ]
       },
-      "FlagOrParam": { },
+      "FlagOrParam": {},
       "FlightSelection": {
         "required": [
           "$kind"
@@ -2734,7 +2734,7 @@
           "LowerIsBetter"
         ]
       },
-      "NumberOrParam": { },
+      "NumberOrParam": {},
       "OpenEntry": {
         "required": [
           "competitionRef",
@@ -3032,13 +3032,17 @@
           },
           {
             "$ref": "#/components/schemas/PredicateAllOf"
+          },
+          {
+            "$ref": "#/components/schemas/PredicateIsRecorded"
           }
         ],
         "discriminator": {
           "propertyName": "$kind",
           "mapping": {
             "comparison": "#/components/schemas/PredicateComparison",
-            "allOf": "#/components/schemas/PredicateAllOf"
+            "allOf": "#/components/schemas/PredicateAllOf",
+            "isRecorded": "#/components/schemas/PredicateIsRecorded"
           }
         }
       },
@@ -3094,6 +3098,22 @@
                 "$ref": "#/components/schemas/MeasuredValue"
               }
             ]
+          }
+        }
+      },
+      "PredicateIsRecorded": {
+        "required": [
+          "metricRef"
+        ],
+        "properties": {
+          "$kind": {
+            "enum": [
+              "isRecorded"
+            ],
+            "type": "string"
+          },
+          "metricRef": {
+            "type": "string"
           }
         }
       },
@@ -4270,7 +4290,7 @@
     "securitySchemes": {
       "Bearer": {
         "type": "http",
-        "description": "Paste a bearer JWT — an IdP-issued token, or a mock persona token printed at startup under Soarscore:Auth:Mode=mock.",
+        "description": "Paste a bearer JWT \u2014 an IdP-issued token, or a mock persona token printed at startup under Soarscore:Auth:Mode=mock.",
         "scheme": "bearer",
         "bearerFormat": "JWT"
       }

@@ -126,11 +126,15 @@ describe('penalties', () => {
     expect(parsePenaltyText('')).toEqual([])
   })
 
-  it('options derive from the adopted class, labelled and deduped', () => {
+  it('options derive from the adopted class, humanised and deduped', () => {
     const options = penaltyOptions(f3k)
     expect(options.map((o) => o.infractionType)).toContain('landedInSafetyArea')
-    expect(options.find((o) => o.infractionType === 'safetyAreaPersonContact')?.label).toContain('−300')
-    expect(options.find((o) => o.infractionType === 'unsignedScoreCard')?.label).toContain('zero round')
+    expect(options.find((o) => o.infractionType === 'safetyAreaPersonContact')?.label).toBe(
+      'Safety Area Person Contact',
+    )
+    expect(options.find((o) => o.infractionType === 'unsignedScoreCard')?.label).toBe(
+      'Unsigned Score Card',
+    )
   })
 
   it('a penalty cell is a round-level key, not per flight', () => {

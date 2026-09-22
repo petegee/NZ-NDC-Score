@@ -3,7 +3,6 @@ import type {
   MeasuredValue,
   Parameter,
   ParameterBindingFold,
-  PenaltyDefinition,
   TaskTiming,
 } from '../api/types'
 import { asNumber } from '../api/types'
@@ -322,19 +321,9 @@ export interface PenaltyOption {
   label: string
 }
 
-function effectSummary(p: PenaltyDefinition): string {
-  return p.effects
-    .map((e) =>
-      e.effect === 'DeductPoints'
-        ? `−${'points' in e ? e.points : '?'} pts`
-        : e.effect.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase(),
-    )
-    .join(', ')
-}
-
 /** The dropdown's options — exactly what the adopted class declares, with a
- * humanised label and the declared effect as a hint. An infraction declared
- * more than once (e.g. per accrual scope) lists once. */
+ * humanised label. An infraction declared more than once (e.g. per accrual
+ * scope) lists once. */
 export function penaltyOptions(definition: ClassDefinition): PenaltyOption[] {
   const seen = new Set<string>()
   const out: PenaltyOption[] = []
@@ -343,7 +332,7 @@ export function penaltyOptions(definition: ClassDefinition): PenaltyOption[] {
     seen.add(p.infractionType)
     out.push({
       infractionType: p.infractionType,
-      label: `${humanisePenalty(p.infractionType)} (${effectSummary(p)})`,
+      label: humanisePenalty(p.infractionType),
     })
   }
   return out

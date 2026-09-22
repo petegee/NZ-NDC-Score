@@ -10,6 +10,7 @@ import type {
   MeasuredValue,
   Person,
   PersonSummary,
+  TaskDefinition,
   TaskRoundRecordingView,
 } from '../api/types'
 import { ApiError } from '../api/wire'
@@ -17,6 +18,25 @@ import { ApiError } from '../api/wire'
 /** A tiny in-memory Soarscore: enough projection + event-store behaviour for
  * the Calculate orchestrator's unit tests — adoption codes, unique email,
  * draw freeze, completion, gaps and the event-log rebuild path. */
+
+/** Metrics a recordedness gate reads (Predicate `$kind: "isRecorded"` in
+ * flightValidWhen): their absence is the gate's false — the flight zeroes
+ * through the gate (5.5.11.7 e, add-recorded-predicate.md) — it never awaits
+ * capture. Pure derivation from the definition, no class branches. */
+function recordednessGateMetrics(task: TaskDefinition): Set<string> {
+  const refs = new Set<string>()
+  const walk = (p: unknown): void => {
+    if (!p || typeof p !== 'object') return
+    const node = p as { children?: unknown[]; $kind?: string; metricRef?: string }
+    if (Array.isArray(node.children)) {
+      node.children.forEach(walk)
+      return
+    }
+    if (node.$kind === 'isRecorded' && typeof node.metricRef === 'string') refs.add(node.metricRef)
+  }
+  walk(task.flightValidWhen)
+  return refs
+}
 
 interface FakePerson {
   id: string
@@ -83,13 +103,16 @@ export class FakeSoarscore {
   }
 
   /** Gaps for one task-round, mirroring the service: competitors with no
-   * entry, and opened flights missing a required (non-whenNotRecorded) metric. */
+   * entry, and opened flights awaiting capture — a non-whenNotRecorded metric
+   * that no recordedness gate reads (a gate-read metric's absence zeroes the
+   * flight instead of pending it). */
   gapCount(definition: ClassDefinition, competitionId: string, roundOrdinal: number): number {
     const c = this.competitions.find((x) => x.id === competitionId)
     const round = c?.rounds.find((r) => r.ordinal === roundOrdinal)
     if (!c || !round) return 0
     const task = definition.phases.flatMap((p) => p.tasks).find((t) => t.code === round.taskRef)
-    const required = task?.metrics.filter((m) => !m.whenNotRecorded).map((m) => m.name) ?? []
+    const gated = task ? recordednessGateMetrics(task) : new Set<string>()
+    const required = task?.metrics.filter((m) => !m.whenNotRecorded && !gated.has(m.name)).map((m) => m.name) ?? []
     const entries = c.entries.filter((e) => e.roundOrdinal === roundOrdinal)
     const members = c.groups.get(roundOrdinal) ?? []
     const expected = members.flat()
@@ -174,12 +197,24 @@ export class FakeSoarscore {
 
     const taskRefFor = (c: FakeCompetition, roundOrdinal: number): string =>
       c.rounds.find((r) => r.ordinal === roundOrdinal)?.taskRef ?? ''
-    const requiredMetrics = (taskRef: string): string[] =>
-      definition.phases
-        .flatMap((p) => p.tasks)
-        .find((t) => t.code === taskRef)
-        ?.metrics.filter((m) => !m.whenNotRecorded)
-        .map((m) => m.name) ?? []
+    const taskFor = (taskRef: string): TaskDefinition | undefined =>
+      definition.phases.flatMap((p) => p.tasks).find((t) => t.code === taskRef)
+    const awaitingMetrics = (taskRef: string): { declared: string[]; awaiting: string[] } => {
+      const task = taskFor(taskRef)
+      if (!task) return { declared: [], awaiting: [] }
+      const gated = recordednessGateMetrics(task)
+      // MissingMetrics is the recorded fact (every absent declared metric);
+      // AwaitingCapture is the subset scoring awaits — a declared
+      // non-assumption that no recordedness gate reads, the same carve-outs
+      // TaskRoundRecording applies (metric-absence-semantics.md WI-3,
+      // add-recorded-predicate.md WI-3). Neither list is a verdict.
+      return {
+        declared: task.metrics.map((m) => m.name),
+        awaiting: task.metrics
+          .filter((m) => !m.whenNotRecorded && !gated.has(m.name))
+          .map((m) => m.name),
+      }
+    }
 
     return {
       findPeople: async (query) => ({
@@ -441,7 +476,7 @@ export class FakeSoarscore {
             e.roundOrdinal === query.roundOrdinal &&
             e.taskRoundOrdinal === query.taskRoundOrdinal,
         )
-        const required = requiredMetrics(taskRefFor(c, query.roundOrdinal))
+        const required = awaitingMetrics(taskRefFor(c, query.roundOrdinal))
         const view: TaskRoundRecordingView = {
           competitionRef: { value: c.id },
           phaseOrdinal: query.phaseOrdinal,
@@ -465,11 +500,14 @@ export class FakeSoarscore {
                 competitorRef: { value: e.competitorId },
                 role: 'Original' as const,
                 flights: [...e.flights.entries()]
-                  .map(([sequence, done]) => ({
-                    sequence,
-                    missingMetrics: [],
-                    awaitingCapture: required.filter((m) => !done.has(m)),
-                  }))
+                  .map(([sequence, done]) => {
+                    const absent = required.declared.filter((m) => !done.has(m))
+                    return {
+                      sequence,
+                      missingMetrics: absent,
+                      awaitingCapture: absent.filter((m) => required.awaiting.includes(m)),
+                    }
+                  })
                   .filter((f) => f.awaitingCapture.length > 0),
               })),
               spots: [],
