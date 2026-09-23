@@ -96,17 +96,24 @@ export type SheetAction =
   | { type: 'classChosen'; contentHash: string; definition: ClassDefinition }
   | { type: 'replace'; state: SheetState }
 
+function pruneCellsBeyond(
+    cells: Record<string, string>,
+    rounds: number,
+  ): Record<string, string> {
+    const kept: Record<string, string> = {}
+    for (const [key, text] of Object.entries(cells)) {
+      if (sheetCellParts(key).roundOrdinal <= rounds) kept[key] = text
+    }
+    return kept
+  }
+
 export function sheetReducer(state: SheetState, action: SheetAction): SheetState {
   switch (action.type) {
     case 'setField':
       return { ...state, [action.field]: action.value }
     case 'setRounds': {
       const rounds = Math.max(1, Math.floor(action.rounds) || 1)
-      const cells: Record<string, string> = {}
-      for (const [key, text] of Object.entries(state.cells)) {
-        if (sheetCellParts(key).roundOrdinal <= rounds) cells[key] = text
-      }
-      return { ...state, rounds, cells }
+      return { ...state, rounds, cells: pruneCellsBeyond(state.cells, rounds) }
     }
     case 'setTaskPick':
       return { ...state, taskPicks: { ...state.taskPicks, [action.roundIndex]: action.taskRef } }
@@ -135,12 +142,21 @@ export function sheetReducer(state: SheetState, action: SheetAction): SheetState
     case 'setCell':
       return { ...state, cells: { ...state.cells, [action.key]: action.text } }
     case 'classChosen': {
+      // Adopting a class re-templates the whole sheet from the definition —
+      // columns, tasks, penalties, and the round count with them. A count
+      // kept from the previous class silently under-draws, and the service
+      // can only refuse counts above the new class's maximum, never the
+      // stale-below case. Cells beyond the new count go with it (the same
+      // rule as setRounds); task picks are class-specific codes.
       const phase = phaseSetupInfo(action.definition, 0)
+      const rounds = phase ? defaultRounds(phase) : 1
       return {
         ...state,
         classContentHash: action.contentHash,
         classDefinition: action.definition,
-        rounds: state.rounds > 1 ? state.rounds : phase ? defaultRounds(phase) : 1,
+        rounds,
+        taskPicks: {},
+        cells: pruneCellsBeyond(state.cells, rounds),
       }
     }
     case 'replace':

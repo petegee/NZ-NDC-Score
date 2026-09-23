@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ClassDefinition, ParameterBindingFold } from '../api/types'
+import alesFixture from '../test/fixtures/81-nz-m-ndc.json'
 import fixture from '../test/fixtures/85b-nz-f3k-ndc.json'
+import radianFixture from '../test/fixtures/85-nz-p-radian.json'
 import {
   initialSheet,
   loadSheet,
@@ -19,6 +21,8 @@ import {
 } from './sheet'
 
 const f3k = fixture as unknown as ClassDefinition
+const ales = alesFixture as unknown as ClassDefinition
+const radian = radianFixture as unknown as ClassDefinition
 
 function f3kSheet(): SheetState {
   return sheetReducer(initialSheet(), {
@@ -44,6 +48,45 @@ describe('sheet reducer', () => {
     expect(s.classContentHash).toBe('hash-1')
     expect(s.classDefinition?.name).toContain('NDC')
     expect(s.rounds).toBe(4)
+  })
+
+  it('changing class adopts the default rounds of the new class — a stale count never survives', () => {
+    const radianSheet = sheetReducer(initialSheet(), {
+      type: 'classChosen',
+      contentHash: 'hash-r',
+      definition: radian,
+    })
+    expect(radianSheet.rounds).toBe(3)
+    const alesSheet = sheetReducer(radianSheet, {
+      type: 'classChosen',
+      contentHash: 'hash-a',
+      definition: ales,
+    })
+    expect(alesSheet.rounds).toBe(4)
+    const back = sheetReducer(alesSheet, {
+      type: 'classChosen',
+      contentHash: 'hash-r',
+      definition: radian,
+    })
+    expect(back.rounds).toBe(3)
+  })
+
+  it('changing class drops cells and task picks beyond the new round count', () => {
+    let s = sheetReducer(initialSheet(), {
+      type: 'classChosen',
+      contentHash: 'hash-a',
+      definition: ales,
+    })
+    s = sheetReducer(s, { type: 'setTaskPick', roundIndex: 1, taskRef: 'X' })
+    s = sheetReducer(s, { type: 'setCell', key: sheetCellKey(4, 1, 1, 'flightTime'), text: '61' })
+    s = sheetReducer(s, {
+      type: 'classChosen',
+      contentHash: 'hash-r',
+      definition: radian,
+    })
+    expect(s.rounds).toBe(3)
+    expect(s.taskPicks).toEqual({})
+    expect(s.cells).toEqual({})
   })
 
   it('cell keys round-trip through parts', () => {
