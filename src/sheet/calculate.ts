@@ -385,7 +385,10 @@ export async function runCalculate(
   }
 
   let bindingsChanged = false
-  for (const param of paramsBoundAt(definition, 'CompetitionSetup')) {
+  // BeforeFlying parameters (e.g. Radian's roundDuration) bind after setup
+  // but before any entry opens — the service refuses openEntry with
+  // openEntry.parameterUnbound while the task's working time is unresolved.
+  for (const param of [...paramsBoundAt(definition, 'CompetitionSetup'), ...paramsBoundAt(definition, 'BeforeFlying')]) {
     if (fold.competition.parameterBindings.some((b) => b.parameterName === param.name)) continue
     const parsed = parseParamInput(param, sheet.params[param.name] ?? '')
     if (!parsed.ok) {

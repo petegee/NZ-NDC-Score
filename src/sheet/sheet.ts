@@ -478,7 +478,10 @@ export function validateSheet(state: SheetState): SheetValidation {
     }
   }
   if (definition) {
-    for (const param of paramsBoundAt(definition, 'CompetitionSetup')) {
+    for (const param of [
+      ...paramsBoundAt(definition, 'CompetitionSetup'),
+      ...paramsBoundAt(definition, 'BeforeFlying'),
+    ]) {
       const parsed = parseParamInput(param, state.params[param.name] ?? '')
       if (!parsed.ok && !parsed.blank) problems.push(parsed.error)
     }

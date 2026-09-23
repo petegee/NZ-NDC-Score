@@ -413,6 +413,33 @@ export class FakeSoarscore {
             e.taskRoundOrdinal === body.taskRoundOrdinal,
         )
         if (existing) throw new ApiError(409, 'openEntry.alreadyOpen', 'already open', [])
+        // Mirror the service's openEntry working-time validation
+        // (Competition.cs): a Fixed working time that references a parameter
+        // must resolve — scoped binding, then unscoped, then the declared
+        // default — or entries cannot open (openEntry.parameterUnbound).
+        const drawnRound = c.rounds.find((r) => r.ordinal === body.roundOrdinal)
+        const task = drawnRound ? taskFor(drawnRound.taskRef) : undefined
+        const workingTime = task?.timing.workingTime as { param?: string } | number | undefined
+        if (task?.timing.kind === 'Fixed' && workingTime && typeof workingTime === 'object') {
+          const name = workingTime.param
+          const bound = c.bindings.some(
+            (b) =>
+              b.parameterName === name &&
+              ((b.phaseOrdinal == null && b.roundOrdinal == null) ||
+                (b.phaseOrdinal === body.phaseOrdinal && b.roundOrdinal === body.roundOrdinal)),
+          )
+          const defaulted = (definition.parameters ?? []).some(
+            (p) => p.name === name && p.defaultValue !== undefined && p.defaultValue !== null,
+          )
+          if (!bound && !defaulted) {
+            throw new ApiError(
+              400,
+              'openEntry.parameterUnbound',
+              `Parameter '${name}' has no binding in the provided bindings dictionary.`,
+              [],
+            )
+          }
+        }
         const e: FakeEntry = {
           id: this.id(),
           competitorId: body.competitorRef,

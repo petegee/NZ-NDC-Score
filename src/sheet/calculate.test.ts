@@ -3,6 +3,7 @@ import type { ClassDefinition } from '../api/types'
 import type { GridColumn } from '../grid/schema'
 import fixture from '../test/fixtures/85b-nz-f3k-ndc.json'
 import f3jFixture from '../test/fixtures/50-f3j.json'
+import radianFixture from '../test/fixtures/85-nz-p-radian.json'
 import {
   CORRECTION_REASON,
   REOPEN_REASON,
@@ -257,6 +258,56 @@ describe('calculate — refusals', () => {
     const report = await runCalculate(api, grown, noProgress)
     expect(report.ok).toBe(false)
     expect(report.steps.find((s) => s.step === 'draw')?.detail).toMatch(/4|3/)
+  })
+})
+
+describe('calculate — BeforeFlying parameters (NDC Radian)', () => {
+  const radian = radianFixture as unknown as ClassDefinition
+
+  function radianSheet(): SheetState {
+    let s = sheetReducer(initialSheet(), { type: 'classChosen', contentHash: 'hash', definition: radian })
+    s = sheetReducer(s, { type: 'setField', field: 'contestName', value: 'NDC Radian' })
+    s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
+    s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-19' })
+    s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
+    s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
+    s = sheetReducer(s, { type: 'addPilot' })
+    s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu', mfnz: '2345' } })
+    // One stopwatch-style flightTime reading per pilot (no overfly metric in
+    // this class — flightTime is a plain column) plus a landing distance.
+    for (const [pi, row] of [1, 2].entries()) {
+      s = sheetReducer(s, { type: 'setCell', key: sheetCellKey(1, row, 1, 'flightTime'), text: `${300 + pi * 10}` })
+      s = sheetReducer(s, { type: 'setCell', key: sheetCellKey(1, row, 1, 'landingDistance'), text: `${8 + pi}` })
+    }
+    return s
+  }
+
+  it('binds the BeforeFlying working-time parameter and completes the round', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(radian)
+    const sheet = radianSheet()
+
+    const report = await runCalculate(api, sheet, noProgress)
+
+    expect(report.ok, report.steps.map((s) => `${s.status} ${s.label} ${s.detail ?? ''}`).join('\n')).toBe(true)
+    const comp = fake.competitionByName('NDC Radian', '2026-09-19')!
+    // roundDuration — the task's working time — landed as a binding.
+    expect(comp.bindings.some((b) => b.parameterName === 'roundDuration')).toBe(true)
+    expect(comp.rounds[0].state).toBe('Complete')
+    expect(report.counts.captured).toBe(4)
+  })
+
+  it('binds roundDuration from the sheet input when the organiser types one', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(radian)
+    const sheet = sheetReducer(radianSheet(), { type: 'setParam', name: 'roundDuration', text: '600' })
+
+    const report = await runCalculate(api, sheet, noProgress)
+
+    expect(report.ok).toBe(true)
+    const comp = fake.competitionByName('NDC Radian', '2026-09-19')!
+    const bind = comp.bindings.find((b) => b.parameterName === 'roundDuration')
+    expect(bind?.value).toMatchObject({ kind: 'Number', number: 600 })
   })
 })
 

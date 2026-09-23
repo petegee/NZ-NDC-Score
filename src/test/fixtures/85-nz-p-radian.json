@@ -1,0 +1,175 @@
+{
+  "name": "ALES Radian (2 m all-foam electric glider)",
+  "faiDesignation": "",
+  "version": "NZMAA Section 5 Soaring, March 2024",
+  "parameters": [
+    {
+      "name": "roundDuration",
+      "kind": "Number",
+      "unit": "s",
+      "allowedValues": [],
+      "boundAt": "BeforeFlying"
+    }
+  ],
+  "reflight": {
+    "entitledScores": "NotPermitted",
+    "othersScore": "NotPermitted"
+  },
+  "penalties": [],
+  "phases": [
+    {
+      "ordinal": 1,
+      "type": "Preliminary",
+      "rounds": {
+        "kind": "FixedSequence",
+        "tasksPerRound": 1,
+        "requireDistinctTaskPerRound": false,
+        "maxRounds": 3
+      },
+      "validity": {
+        "minRounds": 3
+      },
+      "drops": [],
+      "tieBreaks": [
+        {
+          "$kind": "equalPlaces"
+        }
+      ],
+      "tasks": [
+        {
+          "code": "D",
+          "name": "Duration",
+          "metrics": [
+            {
+              "name": "flightTime",
+              "kind": "Number",
+              "unit": "s",
+              "declaredBeforeLaunch": false,
+              "precision": {
+                "mode": "Truncate",
+                "precision": 1
+              }
+            },
+            {
+              "name": "landingDistance",
+              "kind": "Number",
+              "unit": "m",
+              "declaredBeforeLaunch": false,
+              "precision": {
+                "mode": "Truncate",
+                "precision": 0.1
+              }
+            },
+            {
+              "name": "motorRestarted",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": false
+              }
+            },
+            {
+              "name": "airborneAtRoundEnd",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": false
+              }
+            },
+            {
+              "name": "landedWithin75m",
+              "kind": "Flag",
+              "declaredBeforeLaunch": false,
+              "whenNotRecorded": {
+                "kind": "Flag",
+                "flag": true
+              }
+            }
+          ],
+          "flights": {
+            "$kind": "last"
+          },
+          "timing": {
+            "kind": "Fixed",
+            "workingTime": {
+              "param": "roundDuration"
+            },
+            "maxLaunches": 1
+          },
+          "flightValidWhen": {
+            "$kind": "comparison",
+            "leftMetricRef": "landedWithin75m",
+            "op": "EqualTo",
+            "rightValue": {
+              "kind": "Flag",
+              "flag": true
+            }
+          },
+          "score": [
+            {
+              "$kind": "piecewise",
+              "metricRef": "flightTime",
+              "bands": [
+                {
+                  "from": 0,
+                  "to": 420,
+                  "ratePerUnit": 1
+                },
+                {
+                  "from": 420,
+                  "ratePerUnit": -1
+                }
+              ]
+            },
+            {
+              "$kind": "conditional",
+              "when": {
+                "$kind": "allOf",
+                "children": [
+                  {
+                    "$kind": "comparison",
+                    "leftMetricRef": "motorRestarted",
+                    "op": "EqualTo",
+                    "rightValue": {
+                      "kind": "Flag",
+                      "flag": false
+                    }
+                  },
+                  {
+                    "$kind": "comparison",
+                    "leftMetricRef": "airborneAtRoundEnd",
+                    "op": "EqualTo",
+                    "rightValue": {
+                      "kind": "Flag",
+                      "flag": false
+                    }
+                  }
+                ]
+              },
+              "then": {
+                "$kind": "lookup",
+                "metricRef": "landingDistance",
+                "rows": [
+                  {
+                    "upTo": 7,
+                    "points": 50
+                  },
+                  {
+                    "upTo": 15,
+                    "points": 25
+                  },
+                  {
+                    "points": 0
+                  }
+                ]
+              }
+            }
+          ],
+          "scoreNormalised": []
+        }
+      ]
+    }
+  ]
+}
