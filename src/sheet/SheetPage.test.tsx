@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SheetPage } from './SheetPage'
@@ -232,6 +232,40 @@ const x5jDefinition = {
 }
 
 function stubFetch(): typeof fetch {
+  // Stateful enough for runCalculate to complete a minimal run: one person,
+  // one competitor, a drawn phase of four rounds, empty groups and empty
+  // recordings (every round completes; nothing to capture).
+  const state = { people: 0, competitors: 0, drawn: false }
+  const fold = () => ({
+    competition: {
+      id: { value: 'comp-1' },
+      name: 'Test NDC',
+      location: 'Somewhere',
+      startDate: '2026-09-19',
+      endDate: '2026-09-19',
+      evaluatorVersion: '1',
+      competitors: state.drawn
+        ? [{ id: { value: 'competitor-1' }, personRef: { value: 'person-1' }, competitorNumber: 1, registeredAt: '2026-09-19T00:00:00Z' }]
+        : [],
+      phases: state.drawn
+        ? [
+            {
+              type: 'Preliminary',
+              ordinal: 0,
+              draw: { createdAt: '2026-09-19T00:00:00Z', status: 'Accepted' },
+              rounds: Array.from({ length: 4 }, (_, i) => ({
+                ordinal: i + 1,
+                taskRounds: [{ ordinal: 1, state: 'Drawn', taskRef: 'D', groups: [] }],
+              })),
+              warnings: [],
+            },
+          ]
+        : [],
+      adoptedRules: { definition: f3kNdcDefinition, sourceClassId: 'x', sourceVersion: '2', adoptedAt: '2026-09-19T00:00:00Z' },
+      parameterBindings: [],
+    },
+    pairwiseCoOccurrence: [],
+  })
   return vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
     if (url.includes('/class-definitions')) {
@@ -290,7 +324,44 @@ function stubFetch(): typeof fetch {
           : f3kNdcDefinition
       return jsonResponse(body)
     }
-    return jsonResponse({ value: null })
+    if (url.includes('/competitions')) return jsonResponse([])
+    if (url.includes('/create-competition')) {
+      state.drawn = false
+      state.people = 0
+      state.competitors = 0
+      return jsonResponse('comp-1')
+    }
+    if (url.includes('/competition-event-log')) {
+      return jsonResponse({ id: { value: 'comp-1' }, name: 'Test NDC', streams: [] })
+    }
+    if (url.includes('/competition-result')) return jsonResponse({ scores: [] })
+    if (url.includes('/task-round-result')) return jsonResponse([])
+    if (url.includes('/task-round-recording')) {
+      return jsonResponse({
+        competitionRef: { value: 'comp-1' },
+        phaseOrdinal: 0,
+        roundOrdinal: 1,
+        taskRoundOrdinal: 1,
+        taskRef: 'D',
+        metrics: [],
+        groups: [],
+      })
+    }
+    if (url.includes('/competition')) return jsonResponse(fold())
+    if (url.includes('/people')) return jsonResponse([])
+    if (url.includes('/register-person')) {
+      state.people += 1
+      return jsonResponse(`person-${state.people}`)
+    }
+    if (url.includes('/register-competitor')) {
+      state.competitors += 1
+      return jsonResponse(`competitor-${state.competitors}`)
+    }
+    if (url.includes('/draw-phase')) {
+      state.drawn = true
+      return jsonResponse('phase-1')
+    }
+    return jsonResponse('ok')
   }) as unknown as typeof fetch
 }
 
@@ -594,6 +665,52 @@ describe('SheetPage', () => {
       expect(screen.queryByLabelText(/start height/i)).not.toBeInTheDocument()
       expect(screen.getByLabelText(/not landed within 75/i)).toBeInTheDocument()
     } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('after the first Calculate, an edit re-runs the orchestrator automatically (debounced)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const user = userEvent.setup()
+    const fetchMock = vi.fn(stubFetch() as unknown as (...args: unknown[]) => Promise<Response>)
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+    const drawCalls = () => fetchMock.mock.calls.filter(([u]) => String(u).includes('/draw-phase')).length
+    try {
+      render(<SheetPage base="http://api.test" />)
+      await waitFor(() => expect(screen.getByText(/RC Hand-Launch Gliders/)).toBeInTheDocument())
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k-v2')
+      await waitFor(() => expect(screen.getAllByText(/Flight time/).length).toBeGreaterThan(0))
+
+      // Header fields the orchestrator and validation need.
+      await user.type(screen.getByLabelText(/Contest name/), 'Test NDC')
+      await user.type(screen.getByLabelText(/Location/), 'Somewhere')
+      await user.type(screen.getByLabelText(/Date/), '2026-09-19')
+      await user.type(screen.getByLabelText(/CD \(signs the commands\)/), 'CD')
+
+      // Before the first Calculate, typing does not auto-run anything — no
+      // commands leave the page (the debounce is armed only by a success).
+      await user.type(screen.getAllByPlaceholderText('Pilot name')[0], 'Ana')
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000)
+      })
+      expect(drawCalls()).toBe(0)
+
+      // First Calculate: the explicit commit runs the orchestrator once.
+      await user.click(screen.getByRole('button', { name: 'Calculate' }))
+      await waitFor(() => expect(screen.getByText(/Sheet calculated/)).toBeInTheDocument())
+      const afterFirst = drawCalls()
+      expect(afterFirst).toBe(1)
+
+      // After it, an edit re-runs the orchestrator on its own (debounced) —
+      // no second button press.
+      await user.type(screen.getAllByPlaceholderText('Pilot name')[0], ' Silva')
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      await waitFor(() => expect(drawCalls()).toBe(afterFirst + 1))
+      expect(screen.getAllByPlaceholderText('Pilot name')[0]).toHaveValue('Ana Silva')
+    } finally {
+      vi.useRealTimers()
       vi.unstubAllGlobals()
     }
   })

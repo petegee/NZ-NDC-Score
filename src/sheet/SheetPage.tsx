@@ -25,6 +25,11 @@ import {
 import { runCalculate, type CalcProgress, type CalcReport } from './calculate'
 import { SheetResults } from './results'
 
+/** Debounce window for the live re-score after the first successful
+ * Calculate — short enough to feel live, long enough to let a keystroke
+ * burst finish. */
+const AUTO_RESCORE_DEBOUNCE_MS = 1200
+
 function errorText(error: unknown): string {
   const code = (error as { code?: string }).code
   const detail = (error as { detail?: string }).detail
@@ -42,6 +47,20 @@ export function SheetPage({ base }: { base: string }) {
   const [report, setReport] = useState<CalcReport | null>(null)
   const [resultsSignal, setResultsSignal] = useState(0)
   const [paramsOpen, setParamsOpen] = useState(false)
+
+  // Latest sheet text for callbacks that must not re-trigger effects —
+  // synced in an effect, read from event handlers and the debounced re-run.
+  const stateRef = useRef(state)
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
+  // Live re-score (after the first Calculate): edits re-run the orchestrator
+  // debounced; the last good report stays on screen when a run is refused.
+  const autoArmedRef = useRef(false)
+  const runningRef = useRef(false)
+  const dirtyRef = useRef(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [lastGood, setLastGood] = useState<CalcReport | null>(null)
 
   // The sheet text is the only client state — persist every keystroke.
   useEffect(() => {
@@ -94,16 +113,67 @@ export function SheetPage({ base }: { base: string }) {
   }
 
   const calculate = async () => {
+    if (runningRef.current) {
+      dirtyRef.current = true
+      return
+    }
+    runningRef.current = true
     setRunning(true)
     setProgress([])
     setReport(null)
-    const rep = await runCalculate(api, state, (p) => setProgress((prev) => [...prev, p]))
+    const rep = await runCalculate(api, stateRef.current, (p) => setProgress((prev) => [...prev, p]))
     setReport(rep)
+    runningRef.current = false
     setRunning(false)
+    if (rep.ok && rep.competitionId) {
+      setLastGood(rep)
+      autoArmedRef.current = true
+    }
     if (rep.competitionId && rep.schedule.length > 0) setResultsSignal((n) => n + 1)
+    // An edit landed while the run was in flight: go again with the latest
+    // sheet so nothing typed during the run stays un-reflected.
+    if (dirtyRef.current && rep.competitionId) {
+      dirtyRef.current = false
+      scheduleAuto()
+    }
   }
 
-  const results = report?.ok && report.competitionId ? report : null
+  // After the first successful run every edit schedules a debounced re-run;
+  // a refused run keeps the last good results on screen and the next
+  // keystroke simply retries.
+  const scheduleAuto = () => {
+    if (!autoArmedRef.current || runningRef.current) return
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null
+      dirtyRef.current = false
+      void calculate()
+    }, AUTO_RESCORE_DEBOUNCE_MS)
+  }
+
+  useEffect(() => {
+    if (!autoArmedRef.current) return
+    dirtyRef.current = true
+    scheduleAuto()
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
+    }
+    // scheduleAuto reads only refs and state setters — sheet text changes
+    // are the trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state])
+
+  // Show the latest good report; a refused run (validation, network, cell
+  // errors) keeps the previous results on screen instead of blanking them —
+  // the errors surface in the calculate bar.
+  const results = report?.ok && report.competitionId
+    ? report
+    : lastGood?.ok && lastGood.competitionId
+      ? lastGood
+      : null
 
   return (
     <main className="sheet-page">
@@ -261,6 +331,12 @@ export function SheetPage({ base }: { base: string }) {
               dispatch({ type: 'replace', state: initialSheet() })
               setReport(null)
               setProgress([])
+              autoArmedRef.current = false
+              setLastGood(null)
+              if (timerRef.current) {
+                clearTimeout(timerRef.current)
+                timerRef.current = null
+              }
             }
           }}
         >

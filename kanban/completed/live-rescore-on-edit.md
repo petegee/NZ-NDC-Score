@@ -1,6 +1,7 @@
 # Story — Live re-scoring on edit (after the first Calculate)
 
-**Status:** Backlog stub · **Raised:** 2026-09-23 (user feedback)
+**Status:** Completed · **Raised:** 2026-09-23 (user feedback) — shipped same
+day as a trigger-and-scheduling change on the existing orchestrator.
 
 ## What
 
@@ -52,3 +53,27 @@ submitted until a competition exists. This story proposes auto-re-run only
 - Debounce window and whether only *amend-class* edits trigger (cell overtypes)
   or header edits (rounds, tasks) do too.
 - Should the Calculate button remain as an explicit force-run/first-run affordance?
+
+## How it landed (2026-09-23)
+
+`SheetPage.tsx` only — no change to `calculate.ts`, the wire, or Soarscore:
+
+- **Arm on first success.** A Calculate that ends `ok` with a competitionId
+  sets `autoArmed`; a **Reset** disarms and clears the timer. The debounce is
+  armed *only* by a successful run, so `add-pilots-and-rounds-after-calculate`
+  refusals are never re-fired on a loop — each auto-run refuses them the same
+  way a manual press would, and shows the same warnings.
+- **Debounce 1200 ms** behind *every* sheet edit (cells, header, pilots —
+  anything that changes `state`). A run in flight is not interrupted: the
+  edit sets a dirty flag and the re-run follows the in-flight one, so nothing
+  typed during a run stays un-reflected.
+- **A refused auto-run never blanks results.** The results block shows the
+  last good report; the new run's problems/cell errors surface in the
+  calculate bar as before. The next keystroke simply retries after debounce.
+- **Calculate stays** as the explicit first-run/force-run affordance.
+- Deferred-decisions entry added (law-4 refinement: batch stays the first-run
+  commit model); tech-debt's cancellation item re-worded for auto-runs.
+- Tests: `SheetPage.test.tsx` gains a stateful `stubFetch` (bare bodies — the
+  wire only unwraps `{value, warnings}` envelopes) covering: no auto-run
+  before the first Calculate, one orchestrator run on Calculate, and a
+  debounced re-run (counted by `/draw-phase` calls) after an edit.

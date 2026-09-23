@@ -34,6 +34,18 @@ client-local state is still just sheet text (localStorage). The adoption and
 retry machinery (`src/sheet/queue.ts`) survives inside the Calculate
 orchestrator.
 
+## Live re-score after the first Calculate — batch stays the first-run commit model
+
+**Decided:** 2026-09-23 (with the user, via
+`kanban/in-progress/live-rescore-on-edit.md`). Law 4's batch-on-Calculate is
+refined, not replaced: the **first** Calculate remains the only commit point
+(nothing is submitted until a competition exists); after a successful run the
+sheet re-runs the orchestrator automatically, debounced (~1.2 s) behind every
+edit, so the results track the typing organiser. The Calculate button stays
+as the explicit first-run/force-run affordance. A refused auto-run never
+blanks the results block — the last good report stays on screen, the errors
+surface in the calculate bar, and the next keystroke simply retries.
+
 ## Correction reasons are never typed by the organiser
 
 **Decided:** 2026-09-17 (with the user). The wire keeps `Reason`/`By`

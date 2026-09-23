@@ -25,11 +25,13 @@ See CLAUDE.md house-keeping rule 5.
   shrink skips without annulling), and a late pilot's `competition.field.frozen`
   is absorbed the same way. Per-round **task** disagreement stays fatal
   deliberately — the cells' meanings would change, so Calculate refuses.
-- [ ] Soarscore capabilities this repo cannot build (raise there when
-  scheduled, never from NdcScore): late registration onto an accepted draw
-  (`competition.field.frozen`), including re-forming groups (F3K min group
-  size 5); extending a drawn fold by more rounds (no draw-extension verb).
-  Until then the sheet warns and keeps the rest of the evening moving.
+- [ ] Soarscore capabilities this repo cannot build — parked as blocked
+  stories 2026-09-23 (user instruction): `ss_late-registration-after-draw.md` →
+  late registration onto an accepted draw (`competition.field.frozen`),
+  including re-forming groups (F3K min group size 5), and
+  `ss_extend-drawn-fold.md` → extending a drawn fold by more rounds (no
+  draw-extension verb). Until they land the sheet warns and keeps the rest of
+  the evening moving.
 - [ ] Draw acceptance is implicit. Calculate draws and immediately accepts
   (`POST /accept-draw`) because capturing needs an accepted draw. A CD who
   wants to inspect or reject a draw before accepting has no UI
@@ -37,6 +39,8 @@ See CLAUDE.md house-keeping rule 5.
   asks for it.
 - [ ] Calculate runs without a cancellation or offline queue. A failed step
   aborts with the error surfaced; partial cell failures are per-cell and
-  retried on the next Calculate. There is no background retry while the
-  organiser keeps typing — acceptable at club scale, revisit if an evening
-  ever outgrows it.
+  retried on the next Calculate. Live re-score (2026-09-23,
+  `completed/live-rescore-on-edit.md`) trades on this: edits now re-run the
+  whole orchestrator debounced while the organiser keeps typing — still fine
+  at club scale (runs are idempotent diffs), but the no-cancellation note
+  now applies per auto-run, not just per button press.
