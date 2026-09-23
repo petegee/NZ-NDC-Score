@@ -91,6 +91,7 @@ describe('calculate — fresh run', () => {
       unchanged: 2,
       failed: 0,
       skippedNotDrawn: 0,
+      skippedNotRegistered: 0,
       penalties: 0,
     })
     expect(fake.people).toHaveLength(peopleBefore)
@@ -190,7 +191,7 @@ describe('calculate — corrections', () => {
     expect(report.steps.some((s) => s.label.includes('Reopened') || s.label.includes('complete'))).toBe(true)
   })
 
-  it('a pilot added after the draw is warned about and skipped — the drawn schedule is immutable', async () => {
+  it('a pilot added after Calculate is absorbed — unregistered, warned, everyone else unaffected', async () => {
     const fake = new FakeSoarscore()
     const api = fake.api(f3k)
     const sheet = baseSheet()
@@ -209,12 +210,26 @@ describe('calculate — corrections', () => {
     })
     const report = await runCalculate(api, withCell, noProgress)
 
+    // The field froze at draw acceptance (the first Calculate accepted it),
+    // but the run is not dead: Cara is a person, never a competitor, and her
+    // cell is counted and warned — while the rest of the sheet still works.
     expect(report.ok).toBe(true)
-    expect(report.counts.captured).toBe(0)
-    expect(report.counts.skippedNotDrawn).toBe(1)
     expect(fake.personByName('Cara Ng')).toBeDefined()
-    expect(fake.competitorsOf(fake.competitionByName('Waikato NDC', '2026-09-19')!.id)).toHaveLength(3)
-    expect(report.steps.some((s) => s.status === 'warn')).toBe(true)
+    expect(fake.competitorsOf(fake.competitionByName('Waikato NDC', '2026-09-19')!.id)).toHaveLength(2)
+    expect(report.counts.skippedNotRegistered).toBe(1)
+    expect(report.steps.some((s) => s.status === 'warn' && s.label.includes('Cara Ng'))).toBe(true)
+    expect(report.steps.some((s) => s.label.includes('field froze'))).toBe(true)
+
+    // The organiser can still overtype and recalculate for the flown field.
+    const edited = sheetReducer(withCell, {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 1, 'flightTime'),
+      text: '1:01',
+    })
+    const rerun = await runCalculate(api, edited, noProgress)
+    expect(rerun.ok).toBe(true)
+    expect(rerun.counts.amended).toBe(1)
+    expect(rerun.counts.skippedNotRegistered).toBe(1)
   })
 })
 
@@ -249,15 +264,41 @@ describe('calculate — refusals', () => {
     expect(step?.detail).toMatch(/drawn schedule/i)
   })
 
-  it('surfaces a sheet claiming more rounds than drawn', async () => {
+  it('a larger round count is absorbed — drawn rounds keep processing, the gap is named', async () => {
     const fake = new FakeSoarscore()
     const api = fake.api(f3k)
     const sheet = sheetReducer(baseSheet(), { type: 'setRounds', rounds: 2 })
     await runCalculate(api, sheet, noProgress)
     const grown = sheetReducer(sheet, { type: 'setRounds', rounds: 3 })
-    const report = await runCalculate(api, grown, noProgress)
-    expect(report.ok).toBe(false)
-    expect(report.steps.find((s) => s.step === 'draw')?.detail).toMatch(/4|3/)
+    const withCell = sheetReducer(grown, {
+      type: 'setCell',
+      key: sheetCellKey(3, 1, 1, 'flightTime'),
+      text: '57',
+    })
+    const report = await runCalculate(api, withCell, noProgress)
+
+    expect(report.ok).toBe(true)
+    const draw = report.steps.find((s) => s.step === 'draw' && s.status === 'warn')
+    expect(draw?.detail).toMatch(/not drawn/i)
+    expect(report.counts.failed).toBe(0)
+    expect(report.counts.unchanged).toBe(2)
+    expect(fake.competitionByName('Waikato NDC', '2026-09-19')!.rounds).toHaveLength(2)
+  })
+
+  it('a smaller round count is absorbed — the extra drawn round is skipped, never annulled', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    const sheet = baseSheet()
+    await runCalculate(api, sheet, noProgress)
+
+    const shrunk = sheetReducer(sheet, { type: 'setRounds', rounds: 1 })
+    const report = await runCalculate(api, shrunk, noProgress)
+
+    expect(report.ok).toBe(true)
+    expect(report.steps.some((s) => s.step === 'draw' && s.status === 'warn')).toBe(true)
+    expect(report.steps.some((s) => s.status === 'warn' && s.label.includes('Round 2'))).toBe(true)
+    expect(fake.competitionByName('Waikato NDC', '2026-09-19')!.rounds[1].state).toBe('Drawn')
+    expect(report.counts.failed).toBe(0)
   })
 })
 
@@ -454,6 +495,7 @@ describe('calculate — stopwatch split (F3J task D, 600 s working time)', () =>
       unchanged: 2, // the stopwatch cell (flight + overfly) and the landing cell
       failed: 0,
       skippedNotDrawn: 0,
+      skippedNotRegistered: 0,
       penalties: 0,
     })
     expect(JSON.stringify(fake.competitions)).toBe(before)

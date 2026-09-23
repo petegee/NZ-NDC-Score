@@ -371,6 +371,13 @@ export class FakeSoarscore {
         if (c.competitors.some((k) => k.personId === personId)) {
           throw new ApiError(409, 'competition.competitor.alreadyRegistered', 'already registered', [])
         }
+        // Mirror the service's field freeze (Competition.cs
+        // ValidateFieldNotFrozen): registration closes the moment the draw is
+        // accepted — the first Calculate accepts immediately, so a pilot
+        // added after it is refused.
+        if (c.drawStatus === 'accepted') {
+          throw new ApiError(400, 'competition.field.frozen', 'The field is frozen: the draw has been accepted.', [])
+        }
         const k = { id: this.id(), personId, number: c.competitors.length + 1 }
         c.competitors.push(k)
         return { value: k.id, warnings: [] }

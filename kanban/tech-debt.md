@@ -18,10 +18,18 @@ See CLAUDE.md house-keeping rule 5.
   computed sequence; the wire also supports open-flight without `Sequence`
   (derived max+1). No NDC seed task needs the difference yet — build it when
   a class does.
-- [ ] Sheet-vs-draw conflict is fatal, not a guided fix. When the drawn
-  schedule disagrees with the sheet (rounds or tasks), Calculate stops with
-  an error telling the organiser the drawn schedule wins. A friendlier path —
-  adopt-the-draw-and-reflow-the-sheet affordance — is unbuilt.
+- [x] ~~Sheet-vs-draw conflict is fatal, not a guided fix~~ — resolved
+  2026-09-23 (`completed/add-pilots-and-rounds-after-calculate.md`): a
+  round-count mismatch now absorbs with loud warnings (the drawn fold stays
+  the truth; growth names the missing Soarscore draw-extension capability,
+  shrink skips without annulling), and a late pilot's `competition.field.frozen`
+  is absorbed the same way. Per-round **task** disagreement stays fatal
+  deliberately — the cells' meanings would change, so Calculate refuses.
+- [ ] Soarscore capabilities this repo cannot build (raise there when
+  scheduled, never from NdcScore): late registration onto an accepted draw
+  (`competition.field.frozen`), including re-forming groups (F3K min group
+  size 5); extending a drawn fold by more rounds (no draw-extension verb).
+  Until then the sheet warns and keeps the rest of the evening moving.
 - [ ] Draw acceptance is implicit. Calculate draws and immediately accepts
   (`POST /accept-draw`) because capturing needs an accepted draw. A CD who
   wants to inspect or reject a draw before accepting has no UI

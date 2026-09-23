@@ -77,7 +77,7 @@ export interface CalcReport {
   steps: CalcProgress[]
   problems: string[]
   cellErrors: { key: string; error: string }[]
-  counts: { captured: number; amended: number; unchanged: number; failed: number; skippedNotDrawn: number; penalties: number }
+  counts: { captured: number; amended: number; unchanged: number; failed: number; skippedNotDrawn: number; skippedNotRegistered: number; penalties: number }
   schedule: CalcScheduleEntry[]
   names: Record<string, string>
   /** Sheet pilot row (1-based) → competitor id. */
@@ -128,6 +128,7 @@ interface PumpCounts {
   unchanged: number
   failed: number
   skippedNotDrawn: number
+  skippedNotRegistered: number
   penalties: number
 }
 
@@ -304,7 +305,7 @@ export async function runCalculate(
   const steps: CalcProgress[] = []
   const problems: string[] = []
   const cellErrors: { key: string; error: string }[] = []
-  const counts: PumpCounts = { captured: 0, amended: 0, unchanged: 0, failed: 0, skippedNotDrawn: 0, penalties: 0 }
+  const counts: PumpCounts = { captured: 0, amended: 0, unchanged: 0, failed: 0, skippedNotDrawn: 0, skippedNotRegistered: 0, penalties: 0 }
   const schedule: CalcScheduleEntry[] = []
   const names: Record<string, string> = {}
   /** Sheet pilot row (1-based) → competitor id — lets the results table read
@@ -450,6 +451,7 @@ export async function runCalculate(
       fold.competition.competitors.map((c) => [c.personRef.value, c.id.value] as const),
     )
     let competitorsChanged = false
+    const fieldFrozen: string[] = []
     for (const { index } of namedPilots) {
       const personId = personByRow.get(index)
       if (!personId || competitorByPerson.has(personId)) continue
@@ -458,6 +460,14 @@ export async function runCalculate(
         competitorsChanged = true
       } catch (error) {
         const code = errorCode(error)
+        if (code === 'competition.field.frozen') {
+          // Registration closes at draw acceptance (the first Calculate
+          // accepts immediately) — a pilot added afterwards is refused by the
+          // service. Absorb it the way corrections are absorbed: warn, keep
+          // everyone else moving; their cells stay uncommitted sheet text.
+          fieldFrozen.push(sheet.pilots[index].name.trim())
+          continue
+        }
         if (
           code !== 'competition.competitor.alreadyRegistered' &&
           code !== 'eventStore.uniqueConstraintViolation'
@@ -469,6 +479,15 @@ export async function runCalculate(
     }
     if (competitorsChanged) fold = (await api.getCompetition(competitionId)).value
     emit({ step: 'pilots', label: `Field of ${fold.competition.competitors.length} ready`, status: 'ok' })
+    if (fieldFrozen.length > 0) {
+      emit({
+        step: 'pilots',
+        label: `${fieldFrozen.join(', ')} not registered — the field froze when the draw was accepted`,
+        status: 'warn',
+        detail:
+          'competition.field.frozen — adding competitors to an accepted draw needs a Soarscore capability that does not exist yet; their cells are skipped.',
+      })
+    }
   } catch (error) {
     emit({ step: 'pilots', label: 'Registering the field failed', status: 'error', detail: errorDetail(error) })
     return report
@@ -516,13 +535,18 @@ export async function runCalculate(
     } else {
       const phase = fold.competition.phases[0]
       if (phase.rounds.length !== sheet.rounds) {
+        // The drawn fold is the truth and no wire verb extends or trims it —
+        // but a count difference no longer dead-ends the evening: the drawn
+        // rounds keep processing, the mismatch is named loudly.
         emit({
           step: 'draw',
-          label: 'The sheet disagrees with the drawn schedule',
-          status: 'error',
-          detail: `Drawn schedule has ${phase.rounds.length} round(s); the sheet claims ${sheet.rounds}. The drawn schedule is the truth — fix the sheet.`,
+          label: `The drawn schedule has ${phase.rounds.length} round(s); the sheet claims ${sheet.rounds}`,
+          status: 'warn',
+          detail:
+            sheet.rounds > phase.rounds.length
+              ? `Round(s) ${phase.rounds.length + 1}–${sheet.rounds} are not drawn — extending a drawn fold needs a Soarscore capability that does not exist yet; their cells are skipped.`
+              : 'The drawn schedule is the truth — the extra drawn round(s) are skipped, never annulled, from here on.',
         })
-        return report
       }
       const grids = sheetRoundGrids(definition, sheet.rounds, sheet.taskPicks)
       for (const round of phase.rounds) {
@@ -635,6 +659,21 @@ export async function runCalculate(
         continue
       }
       const notDrawnHere = new Set<string>()
+      const notRegisteredHere = new Set<string>()
+      // No competitor behind a named row — usually the field froze before the
+      // pilot could register. Never silent: their typed cells are counted and
+      // warned per round, and stay uncommitted sheet text.
+      for (const { index } of namedPilots) {
+        if (competitorByRow.has(index)) continue
+        for (const flightRow of visibleFlightRows(rg.grid, round.ordinal, index + 1, sheet.cells)) {
+          for (const col of rg.grid.columns) {
+            if (col.stopwatchRole === 'overfly') continue
+            const key = sheetCellKey(round.ordinal, index + 1, flightRow.sequence, col.metric)
+            if ((sheet.cells[key] ?? '').trim()) counts.skippedNotRegistered++
+          }
+        }
+        notRegisteredHere.add(sheet.pilots[index].name.trim())
+      }
       let needReopen = false
       let reopened = false
       for (const group of taskRound.groups) {
@@ -775,6 +814,14 @@ export async function runCalculate(
           detail: 'The drawn schedule is immutable for this MVP — their cells are skipped.',
         })
       }
+      if (notRegisteredHere.size > 0) {
+        emit({
+          step: 'capture',
+          label: `Round ${round.ordinal}: ${[...notRegisteredHere].join(', ')} not registered — cells skipped`,
+          status: 'warn',
+          detail: 'The field froze when the draw was accepted; their numbers stay uncommitted sheet text.',
+        })
+      }
       if (needReopen && taskRound.state === 'Complete') {
         try {
           await api.reopenTaskRound({
@@ -862,6 +909,7 @@ export async function runCalculate(
       `${counts.unchanged} unchanged`,
       counts.penalties ? `${counts.penalties} penalty(s) recorded` : '',
       counts.skippedNotDrawn ? `${counts.skippedNotDrawn} not drawn this round` : '',
+      counts.skippedNotRegistered ? `${counts.skippedNotRegistered} not registered (field frozen)` : '',
       counts.failed ? `${counts.failed} failed` : '',
     ]
       .filter(Boolean)
