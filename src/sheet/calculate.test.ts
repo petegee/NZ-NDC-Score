@@ -350,6 +350,22 @@ describe('calculate — BeforeFlying parameters (NDC Radian)', () => {
     const bind = comp.bindings.find((b) => b.parameterName === 'roundDuration')
     expect(bind?.value).toMatchObject({ kind: 'Number', number: 600 })
   })
+
+  it('captures an entered landing 0 as an exact zero, never blank', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(radian)
+    const sheet = sheetReducer(radianSheet(), {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 1, 'landingDistance'),
+      text: '0',
+    })
+
+    const report = await runCalculate(api, sheet, noProgress)
+
+    expect(report.ok, report.steps.map((s) => `${s.status} ${s.label} ${s.detail ?? ''}`).join('\n')).toBe(true)
+    const flight = fake.competitionByName('NDC Radian', '2026-09-19')!.entries[0].flights.get(1)!
+    expect(flight.get('landingDistance')).toEqual({ kind: 'Number', number: 0 })
+  })
 })
 
 describe('sameMeasurement', () => {

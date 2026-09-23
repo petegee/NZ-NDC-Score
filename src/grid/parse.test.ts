@@ -19,6 +19,11 @@ describe('parseCellText', () => {
     expect(parseCellText('42.7', 'Number', 'm')).toEqual({ ok: true, value: { kind: 'Number', number: 42.7 } })
   })
 
+  it('passes a bare 0 through as a zero reading, never blank', () => {
+    expect(parseCellText('0', 'Number', 'm')).toEqual({ ok: true, value: { kind: 'Number', number: 0 } })
+    expect(parseCellText('0', 'Number', 's')).toEqual({ ok: true, value: { kind: 'Number', number: 0 } })
+  })
+
   it('parses flags as y/n words and digits', () => {
     expect(parseCellText('y', 'Flag')).toEqual({ ok: true, value: { kind: 'Flag', flag: true } })
     expect(parseCellText('n', 'Flag')).toEqual({ ok: true, value: { kind: 'Flag', flag: false } })
