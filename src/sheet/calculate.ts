@@ -9,7 +9,7 @@ import { ApiError } from '../api/wire'
 import { applyRounding } from '../grid/precision'
 import { parseCellText } from '../grid/parse'
 import type { GridColumn } from '../grid/schema'
-import { splitStopwatch } from '../grid/stopwatch'
+import { formatClock, splitStopwatch } from '../grid/stopwatch'
 import {
   chainCommands,
   captureReducer,
@@ -137,6 +137,13 @@ interface RebuiltCells {
   cells: CaptureState['cells']
 }
 
+/** A loud, non-blocking notice about one stopwatch reading — emitted per
+ * Calculate run, never a refusal and never a value change. */
+export interface StopwatchNotice {
+  label: string
+  detail: string
+}
+
 /** One stopwatch cell: the organiser's single launch-to-landing reading for a
  * flightTime + overflySeconds task. The rulebook's split runs here, at the
  * task's working time, before any command is queued — overfly =
@@ -146,7 +153,12 @@ interface RebuiltCells {
  * is the declared absence (whenNotRecorded) — it is not captured, but a
  * previously captured overfly that the corrected reading erases is amended
  * to the assumed value: absence cannot unrecord an event, an explicit value
- * can. All other metrics are untouched. */
+ * can. All other metrics are untouched.
+ *
+ * Returns a notice when the reading reaches the working-time horn with no
+ * overfly surviving the declared rounding (the paper flyaway ambiguity:
+ * "600 means the model never landed") — the organiser is told, the reading
+ * is never refused or reinterpreted, and the engine still rules. */
 function splitStopwatchCell(
   rg: ReturnType<typeof sheetRoundGrids>[number],
   col: GridColumn,
@@ -165,13 +177,13 @@ function splitStopwatchCell(
   cellErrors: { key: string; error: string }[],
   nextCommandId: () => number,
   needReopen: () => void,
-): void {
+): StopwatchNotice | undefined {
   const pair = rg.grid.stopwatch
   const overflyCol = rg.grid.columns.find((c) => c.stopwatchRole === 'overfly')
   if (!pair || !overflyCol) {
     cellErrors.push({ key, error: 'stopwatch column without its overfly metric' })
     counts.failed++
-    return
+    return undefined
   }
   const workingTime = resolveWorkingTime(
     rg.grid.timing,
@@ -187,15 +199,28 @@ function splitStopwatchCell(
       error: `no working time to split the stopwatch reading against (declare it in the task or bind the parameter)`,
     })
     counts.failed++
-    return
+    return undefined
   }
   const seconds = asNumber(total)
   if (seconds === undefined || !Number.isFinite(seconds) || seconds < 0) {
     cellErrors.push({ key, error: 'not a stopwatch time' })
     counts.failed++
-    return
+    return undefined
   }
   const split = splitStopwatch(seconds, workingTime, col, overflyCol)
+  // The flyaway reading (`f5j-flight-time-cap-at-959`): a total that reaches
+  // the horn leaves no overfly once the declared rounding applies, so the
+  // engine sees a perfect in-window flight and cannot tell "never landed"
+  // from "landed exactly on the limit" — max flight time and landing points
+  // is a state the rulebook does not allow. Definition-derived (the pair,
+  // the working time, the flight metric's granularity), never class-branched.
+  const hornNotice =
+    seconds >= workingTime && split.overfly === 0
+      ? {
+          label: `stopwatch ${formatClock(seconds)} reaches the ${formatClock(workingTime)} working time with no overfly`,
+          detail: `A stopwatch at the horn is paper shorthand for "the model never landed", but the engine cannot tell a flyaway from a landing exactly on the limit and will score any landing entered for this flight. If the model landed inside the window, enter the reading as at most ${formatClock(workingTime - (col.precision?.precision ?? 1))}; if it flew away, do not enter landing points (the flyaway reading is pending with Soarscore).`,
+        }
+      : undefined
   const flightValue = measuredNumber(split.flight)
   const overflyValue = measuredNumber(split.overfly)
   const flightCommitted = rebuilt.cells[wireCellKey(competitorId, flightSequence, pair.flightMetric)]
@@ -211,7 +236,7 @@ function splitStopwatchCell(
     : sameMeasurement(overflyCommitted?.value, overflyValue, overflyCol)
   if (flightUnchanged && overflyUnchanged) {
     counts.unchanged++
-    return
+    return hornNotice
   }
   if (roundState === 'Complete' && ((flightCommitted && !flightUnchanged) || (overflyCommitted && !overflyUnchanged))) {
     needReopen()
@@ -242,6 +267,7 @@ function splitStopwatchCell(
       ),
     )
   }
+  return hornNotice
 }
 
 /** Runs one task-round group's queued commands to a terminal state through
@@ -717,7 +743,7 @@ export async function runCalculate(
                 continue
               }
               if (col.stopwatchRole === 'total') {
-                splitStopwatchCell(
+                const horn = splitStopwatchCell(
                   rg,
                   col,
                   parsed.value,
@@ -738,6 +764,14 @@ export async function runCalculate(
                     needReopen = true
                   },
                 )
+                if (horn) {
+                  emit({
+                    step: 'capture',
+                    label: `Round ${round.ordinal}: ${sheet.pilots[index].name.trim()} flight ${flightRow.sequence} — ${horn.label}`,
+                    status: 'warn',
+                    detail: horn.detail,
+                  })
+                }
                 continue
               }
               const wireKey = wireCellKey(competitorId, flightRow.sequence, col.metric)

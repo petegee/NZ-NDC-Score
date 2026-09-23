@@ -40,6 +40,22 @@ export interface StopwatchReading {
   overfly: number
 }
 
+/** Organiser-language clock text for a seconds reading — 599 → "9:59",
+ * 599.9 → "9:59.9", 600 → "10:00", 3661 → "1:01:01" — the way the sheet's
+ * stopwatch column and the paper tool read. */
+export function formatClock(seconds: number): string {
+  const whole = Math.floor(seconds)
+  const h = Math.floor(whole / 3600)
+  const m = Math.floor((whole % 3600) / 60)
+  const s = whole % 60
+  const base =
+    h > 0
+      ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      : `${m}:${String(s).padStart(2, '0')}`
+  const frac = seconds - whole
+  return frac > 0 ? `${base}.${Math.round(frac * 10)}` : base
+}
+
 /** The rulebook's split of one stopwatch reading at the task's working time:
  * overflySeconds = max(0, total − workingTime) and flightTime =
  * min(total, workingTime), each rounded per its own metric's declared
