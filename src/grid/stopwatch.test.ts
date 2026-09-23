@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ClassDefinition } from '../api/types'
 import f3jFixture from '../test/fixtures/50-f3j.json'
 import { deriveTaskGrid, taskByRef, type GridColumn as Col } from '../grid/schema'
-import { splitStopwatch, stopwatchPair } from '../grid/stopwatch'
+import { formatClock, splitStopwatch, stopwatchPair } from '../grid/stopwatch'
 import { applyRounding } from '../grid/precision'
 import { parseCellText } from '../grid/parse'
 
@@ -114,6 +114,16 @@ describe('splitStopwatch — boundary cases (F3J, 600 s working time)', () => {
       flight: 900,
       overfly: 10,
     })
+  })
+})
+
+describe('formatClock — organiser clock text for the horn warning', () => {
+  it('speaks whole seconds, 0.1 s steps and long flights the way the paper tool reads', () => {
+    expect(formatClock(599)).toBe('9:59')
+    expect(formatClock(599.9)).toBe('9:59.9')
+    expect(formatClock(600)).toBe('10:00')
+    expect(formatClock(600.4)).toBe('10:00.4')
+    expect(formatClock(3661)).toBe('1:01:01')
   })
 })
 

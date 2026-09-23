@@ -3,6 +3,7 @@ import type { ClassDefinition } from '../api/types'
 import type { GridColumn } from '../grid/schema'
 import fixture from '../test/fixtures/85b-nz-f3k-ndc.json'
 import f3jFixture from '../test/fixtures/50-f3j.json'
+import f5jFixture from '../test/fixtures/85c-nz-f5j-ndc.json'
 import radianFixture from '../test/fixtures/85-nz-p-radian.json'
 import {
   CORRECTION_REASON,
@@ -589,5 +590,95 @@ describe('calculate — stopwatch split (F3J task D, 600 s working time)', () =>
     expect(comp.entries[0].flights.get(1)!.get('flightTime')).toMatchObject({ number: 590 })
     expect(comp.entries[1].flights.get(1)!.get('flightTime')).toMatchObject({ number: 600 })
     expect(comp.entries[1].flights.get(1)!.get('overflySeconds')).toMatchObject({ number: 2 })
+  })
+})
+
+// --- the flyaway ambiguity: a stopwatch reading at the working-time horn ---
+// (`f5j-flight-time-cap-at-959.md` — "cap at 9:59; a 600 sec flight results in
+// a zero landing". The engine cannot tell a flyaway from a horn-edge landing;
+// the sheet warns loudly, never refuses, never reinterprets.)
+
+function f5jSheet(): SheetState {
+  const f5j = f5jFixture as unknown as ClassDefinition
+  let s = sheetReducer(initialSheet(), {
+    type: 'classChosen',
+    contentHash: 'hash-f5j',
+    definition: f5j,
+  })
+  s = sheetReducer(s, { type: 'setField', field: 'contestName', value: 'Electric NDC' })
+  s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
+  s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-21' })
+  s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
+  s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
+  s = sheetReducer(s, { type: 'addPilot' })
+  s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu', mfnz: '2345' } })
+  return s
+}
+
+describe('calculate — stopwatch at the working-time horn (flyaway ambiguity)', () => {
+  it('a 10:00 reading warns loudly and still captures — the engine is the truth', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    const sheet = f3jReading(f3jSheet(), 1, '10:00', '9.9')
+    const report = await runCalculate(api, sheet, noProgress)
+
+    expect(report.ok).toBe(true)
+    const warn = report.steps.find((s) => s.status === 'warn' && s.label.includes('Ana Silva'))
+    expect(warn?.label).toMatch(/flight 1 — stopwatch 10:00 reaches the 10:00 working time with no overfly/)
+    expect(warn?.detail).toMatch(/never landed/)
+    expect(warn?.detail).toMatch(/at most 9:59\.9/) // the flight metric's 0.1 s step
+    const flight = fake.competitionByName('Thermal NDC', '2026-09-20')!.entries[0].flights.get(1)!
+    expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 600 })
+    expect(flight.has('overflySeconds')).toBe(false)
+  })
+
+  it('a sub-second excess that truncates away warns too (600.4 → flight 600, no overfly)', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    const sheet = f3jReading(f3jSheet(), 1, '600.4', '9.9')
+    const report = await runCalculate(api, sheet, noProgress)
+
+    expect(report.ok).toBe(true)
+    expect(
+      report.steps.some((s) => s.status === 'warn' && s.label.includes('10:00.4')),
+    ).toBe(true)
+  })
+
+  it('a reading past the horn with a surviving overfly does not warn — the definition zeroes that landing', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    const sheet = f3jReading(f3jSheet(), 1, '10:04', '9.9')
+    const report = await runCalculate(api, sheet, noProgress)
+
+    expect(report.ok).toBe(true)
+    expect(report.steps.some((s) => s.status === 'warn' && s.label.includes('no overfly'))).toBe(false)
+  })
+
+  it('a reading inside the window never warns', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3j)
+    const sheet = f3jReading(f3jSheet(), 1, '9:50', '12.3')
+    const report = await runCalculate(api, sheet, noProgress)
+
+    expect(report.ok).toBe(true)
+    expect(report.steps.some((s) => s.status === 'warn' && s.label.includes('Ana Silva'))).toBe(false)
+  })
+
+  it('the advice speaks the class declaration — F5J whole seconds cap a landed reading at 9:59', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f5jFixture as unknown as ClassDefinition)
+    let sheet = f5jSheet()
+    sheet = sheetReducer(sheet, { type: 'setCell', key: sheetCellKey(1, 1, 1, 'flightTime'), text: '10:00' })
+    sheet = sheetReducer(sheet, { type: 'setCell', key: sheetCellKey(1, 1, 1, 'startHeight'), text: '150' })
+    sheet = sheetReducer(sheet, { type: 'setCell', key: sheetCellKey(1, 1, 1, 'landingDistance'), text: '3' })
+    const report = await runCalculate(api, sheet, noProgress)
+
+    expect(report.ok).toBe(true)
+    const warn = report.steps.find((s) => s.status === 'warn' && s.label.includes('no overfly'))
+    expect(warn?.label).toMatch(/stopwatch 10:00 reaches the 10:00 working time/)
+    expect(warn?.detail).toMatch(/at most 9:59;/)
+    const flight = fake.competitionByName('Electric NDC', '2026-09-21')!.entries[0].flights.get(1)!
+    expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 600 })
+    expect(flight.has('overflySeconds')).toBe(false)
   })
 })
