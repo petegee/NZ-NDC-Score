@@ -38,9 +38,42 @@ describe('sheet reducer', () => {
     expect(initialSheet().pilots.every((p) => p.name === '' && p.mfnz === '' && p.email === '')).toBe(true)
   })
 
-  it('addPilot appends after the default rows', () => {
-    const s = sheetReducer(initialSheet(), { type: 'addPilot' })
-    expect(s.pilots).toHaveLength(11)
+  it('setPilotCount above the default appends empty rows', () => {
+    const s = sheetReducer(initialSheet(), { type: 'setPilotCount', count: 12 })
+    expect(s.pilots).toHaveLength(12)
+    expect(s.pilots.every((p) => p.name === '' && p.mfnz === '' && p.email === '')).toBe(true)
+  })
+
+  it('setPilotCount prunes cells beyond the count without re-keying the kept rows', () => {
+    let s = f3kSheet()
+    const r1 = sheetCellKey(1, 1, 1, 'flightTime')
+    const r2 = sheetCellKey(1, 2, 1, 'flightTime')
+    const r3 = sheetCellKey(1, 3, 1, 'flightTime')
+    s = sheetReducer(s, { type: 'setCell', key: r1, text: '62' })
+    s = sheetReducer(s, { type: 'setCell', key: r2, text: '63' })
+    s = sheetReducer(s, { type: 'setCell', key: r3, text: '64' })
+    s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
+    expect(Object.keys(s.cells)).toEqual([r1, r2])
+    expect(s.cells).toEqual({ [r1]: '62', [r2]: '63' })
+  })
+
+  it('setPilotCount floors at one pilot', () => {
+    for (const count of [0, -3, 0.5, Number.NaN]) {
+      const s = sheetReducer(initialSheet(), { type: 'setPilotCount', count })
+      expect(s.pilots).toHaveLength(1)
+    }
+    expect(sheetReducer(initialSheet(), { type: 'setPilotCount', count: 2.7 }).pilots).toHaveLength(2)
+  })
+
+  it('growing back does not resurrect pruned cells', () => {
+    let s = f3kSheet()
+    const r3 = sheetCellKey(1, 3, 1, 'flightTime')
+    s = sheetReducer(s, { type: 'setCell', key: r3, text: '64' })
+    s = sheetReducer(s, { type: 'setPilotCount', count: 1 })
+    expect(s.cells).toEqual({})
+    s = sheetReducer(s, { type: 'setPilotCount', count: 4 })
+    expect(s.pilots).toHaveLength(4)
+    expect(s.cells).toEqual({})
   })
 
   it('choosing a class adopts the definition and default rounds', () => {
@@ -108,19 +141,21 @@ describe('sheet reducer', () => {
     expect(Object.keys(s.cells)).toEqual([sheetCellKey(1, 1, 1, 'flightTime')])
   })
 
-  it('removing a pilot re-keys the rows below it', () => {
+  it('shrinking the field keeps row numbers as identity — kept cells stay under the same keys', () => {
     let s = f3kSheet()
-    s = sheetReducer(s, { type: 'addPilot' })
-    s = sheetReducer(s, { type: 'addPilot' })
+    s = sheetReducer(s, { type: 'setPilotCount', count: 12 })
     const r1 = sheetCellKey(1, 1, 1, 'flightTime')
     const r2 = sheetCellKey(1, 2, 1, 'flightTime')
-    const r3 = sheetCellKey(1, 3, 1, 'flightTime')
+    const r12 = sheetCellKey(1, 12, 1, 'flightTime')
     s = sheetReducer(s, { type: 'setCell', key: r1, text: '62' })
     s = sheetReducer(s, { type: 'setCell', key: r2, text: '63' })
-    s = sheetReducer(s, { type: 'setCell', key: r3, text: '64' })
-    s = sheetReducer(s, { type: 'removePilot', index: 1 })
-    expect(Object.fromEntries(Object.entries(s.cells).map(([k, v]) => [sheetCellParts(k).pilotRow, v])))
-      .toEqual({ 1: '62', 2: '64' })
+    s = sheetReducer(s, { type: 'setCell', key: r12, text: '64' })
+    s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
+    expect(sheetCellParts(r1).pilotRow).toBe(1)
+    expect(sheetCellParts(r2).pilotRow).toBe(2)
+    expect(s.cells[r1]).toBe('62')
+    expect(s.cells[r2]).toBe('63')
+    expect(s.cells[r12]).toBeUndefined()
   })
 })
 

@@ -38,7 +38,7 @@ d('Calculate: the whole sheet → one command sequence, against a live API', () 
     sheet = sheetReducer(sheet, { type: 'classChosen', contentHash: ales!.contentHash, definition })
     sheet = sheetReducer(sheet, { type: 'setParam', name: 'minNewGroup', text: '3' })
     for (const [i, name] of ['Live Pilot A', 'Live Pilot B', 'Live Pilot C'].entries()) {
-      if (i > 0) sheet = sheetReducer(sheet, { type: 'addPilot' })
+      if (i > 0) sheet = sheetReducer(sheet, { type: 'setPilotCount', count: sheet.pilots.length + 1 })
       sheet = sheetReducer(sheet, { type: 'setPilot', index: i, patch: { name, mfnz: String(700 + i) } })
     }
     // Round 1, flight 1: time + landing for all three pilots.
@@ -105,7 +105,7 @@ d('Calculate: the whole sheet → one command sequence, against a live API', () 
     sheet = sheetReducer(sheet, { type: 'setTaskPick', roundIndex: 1, taskRef: 'D' })
     const pilots = ['Live F3K P1', 'Live F3K P2', 'Live F3K P3', 'Live F3K P4', 'Live F3K P5']
     for (const [i, name] of pilots.entries()) {
-      if (i > 0) sheet = sheetReducer(sheet, { type: 'addPilot' })
+      if (i > 0) sheet = sheetReducer(sheet, { type: 'setPilotCount', count: sheet.pilots.length + 1 })
       sheet = sheetReducer(sheet, { type: 'setPilot', index: i, patch: { name, mfnz: String(800 + i) } })
     }
     // Round 1 = task B (lastN 2): two flights per pilot, times only (the

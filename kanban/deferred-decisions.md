@@ -46,6 +46,18 @@ as the explicit first-run/force-run affordance. A refused auto-run never
 blanks the results block — the last good report stays on screen, the errors
 surface in the calculate bar, and the next keystroke simply retries.
 
+## The results refresh button is retired — Calculate and the auto-rescore are the only triggers
+
+**Decided:** 2026-09-25 (with the user, via
+`kanban/completed/objective-three-ui-simplifications.md`). The results
+block's small "Refresh results" button is removed: the Calculate press (the
+explicit first-run commit gate, kept) bumps the results refetch on every run,
+and after the first good run the debounced auto-rescore bumps it behind every
+edit — a manual refresh is a second, contradictory trigger. Law 4's
+batch-on-Calculate stands exactly as refined on 2026-09-23: nothing is
+submitted until the organiser presses Calculate; an un-pressed sheet never
+sends commands, however complete it looks.
+
 ## Correction reasons are never typed by the organiser
 
 **Decided:** 2026-09-17 (with the user). The wire keeps `Reason`/`By`

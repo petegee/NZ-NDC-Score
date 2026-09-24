@@ -24,14 +24,14 @@ export function SheetResults({
   competitionId: string
   names: Map<string, string>
   schedule: CalcScheduleEntry[]
-  /** Bump to refetch (Calculate or manual refresh). */
+  /** Bump to refetch — Calculate bumps it on every run, including the
+   * debounced auto re-runs. */
   signal: number
   grids?: SheetRoundGrid[]
   cells?: Record<string, string>
   rowCompetitors?: Record<string, string>
   rowCountPerRound?: number[]
 }) {
-  const [refresh, setRefresh] = useState(0)
   const [standings, setStandings] = useState<CompetitionScore | null>(null)
   const [standingsError, setStandingsError] = useState<string | null>(null)
   const [roundScores, setRoundScores] = useState<Record<string, GroupScore[]>>({})
@@ -77,7 +77,7 @@ export function SheetResults({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, competitionId, signal, refresh])
+  }, [api, competitionId, signal])
 
   if (schedule.length === 0) return null
 
@@ -108,17 +108,6 @@ export function SheetResults({
       ) : !standingsError ? (
         <p className="hint">Loading scores…</p>
       ) : null}
-      <button
-        type="button"
-        onClick={() => {
-          setStandings(null)
-          setRoundScores({})
-          setRoundErrors({})
-          setRefresh((n) => n + 1)
-        }}
-      >
-        Refresh results
-      </button>
     </section>
   )
 }

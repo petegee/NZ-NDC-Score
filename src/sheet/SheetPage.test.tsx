@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SheetPage } from './SheetPage'
@@ -406,11 +406,17 @@ describe('SheetPage', () => {
       expect(screen.getByRole('button', { name: 'Calculate' })).toBeInTheDocument()
       expect(screen.getByText(/type anywhere, any time/)).toBeInTheDocument()
 
-      // Ten rows by default; the Add competitor button appends one more.
+      // Ten rows by default; the Pilots input in the Contest panel resizes
+      // the field (still enabled — nothing has been scored yet). The draft
+      // commits on blur — typing '12' never shrinks through '1' first.
       const nameInputs = () => screen.getAllByPlaceholderText('Pilot name')
       expect(nameInputs()).toHaveLength(10)
-      await user.click(screen.getByRole('button', { name: '+ Add competitor' }))
-      expect(nameInputs()).toHaveLength(11)
+      const pilotsInput = screen.getByLabelText('Pilots')
+      expect(pilotsInput).not.toBeDisabled()
+      fireEvent.change(pilotsInput, { target: { value: '12' } })
+      expect(nameInputs()).toHaveLength(10)
+      fireEvent.blur(pilotsInput)
+      expect(nameInputs()).toHaveLength(12)
     } finally {
       vi.unstubAllGlobals()
     }
@@ -554,10 +560,10 @@ describe('SheetPage', () => {
       await waitFor(() => expect(document.querySelectorAll('tbody tr').length).toBe(10))
 
       // 10 pilots, one <tr> each; 2 flight rows + penalty per round →
-      // pilot + mfnz + 4 rounds × (2×flightTime + penalties) + remove = 15 cells.
+      // pilot + mfnz + 4 rounds × (2×flightTime + penalties) = 14 cells.
       const bodyRows = [...document.querySelectorAll('tbody tr')]
       for (const row of bodyRows) {
-        expect(row.querySelectorAll('td')).toHaveLength(15)
+        expect(row.querySelectorAll('td')).toHaveLength(14)
       }
       expect(document.querySelectorAll('input[placeholder="Pilot name"]')).toHaveLength(10)
       // no rowSpan/colSpan anywhere in the body — nothing can spill
@@ -593,7 +599,7 @@ describe('SheetPage', () => {
 
       // Body order matches: each round block is [flightTime, flightTime, penalties].
       const cells = [...document.querySelectorAll('tbody tr')[0].querySelectorAll('td')]
-      expect(cells).toHaveLength(15)
+      expect(cells).toHaveLength(14)
       for (const base of [2, 5, 8, 11]) {
         expect(cells[base].querySelector('input.cell')).not.toBeNull()
         expect(cells[base + 1].querySelector('input.cell')).not.toBeNull()
@@ -669,7 +675,7 @@ describe('SheetPage', () => {
     }
   })
 
-  it('after the first Calculate, an edit re-runs the orchestrator automatically (debounced)', async () => {
+  it('Calculate is the commit gate: even a complete sheet never auto-runs before the first press; edits re-run after', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const user = userEvent.setup()
     const fetchMock = vi.fn(stubFetch() as unknown as (...args: unknown[]) => Promise<Response>)
@@ -681,34 +687,34 @@ describe('SheetPage', () => {
       await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k-v2')
       await waitFor(() => expect(screen.getAllByText(/Flight time/).length).toBeGreaterThan(0))
 
-      // Header fields the orchestrator and validation need.
+      // Fill the sheet completely — class, header fields and a pilot name.
       await user.type(screen.getByLabelText(/Contest name/), 'Test NDC')
       await user.type(screen.getByLabelText(/Location/), 'Somewhere')
       await user.type(screen.getByLabelText(/Date/), '2026-09-19')
       await user.type(screen.getByLabelText(/CD \(signs the commands\)/), 'CD')
+      await user.type(screen.getAllByPlaceholderText('Pilot name')[0], 'Ana Silva')
 
-      // Before the first Calculate, typing does not auto-run anything — no
-      // commands leave the page (the debounce is armed only by a success).
-      await user.type(screen.getAllByPlaceholderText('Pilot name')[0], 'Ana')
+      // A complete sheet still sends nothing on its own: the Calculate press
+      // is the only first-run trigger.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(3000)
       })
       expect(drawCalls()).toBe(0)
 
-      // First Calculate: the explicit commit runs the orchestrator once.
+      // The explicit commit runs the orchestrator once.
       await user.click(screen.getByRole('button', { name: 'Calculate' }))
-      await waitFor(() => expect(screen.getByText(/Sheet calculated/)).toBeInTheDocument())
-      const afterFirst = drawCalls()
-      expect(afterFirst).toBe(1)
+      await waitFor(() => expect(drawCalls()).toBe(1))
+      await waitFor(() =>
+        expect(screen.queryByRole('button', { name: 'Calculating…' })).not.toBeInTheDocument(),
+      )
 
-      // After it, an edit re-runs the orchestrator on its own (debounced) —
-      // no second button press.
-      await user.type(screen.getAllByPlaceholderText('Pilot name')[0], ' Silva')
+      // After the first good run, an edit re-runs the orchestrator on its
+      // own (debounced) — no button press.
+      await user.type(screen.getAllByPlaceholderText('Pilot name')[0], ' Jr')
       await act(async () => {
         await vi.advanceTimersByTimeAsync(2000)
       })
-      await waitFor(() => expect(drawCalls()).toBe(afterFirst + 1))
-      expect(screen.getAllByPlaceholderText('Pilot name')[0]).toHaveValue('Ana Silva')
+      await waitFor(() => expect(drawCalls()).toBe(2))
     } finally {
       vi.useRealTimers()
       vi.unstubAllGlobals()

@@ -23,7 +23,7 @@ d('live repro: NDC Radian', () => {
     s = sheetReducer(s, { type: 'setField', field: 'date', value: new Date().toISOString().slice(0, 10) })
     s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Live CD' })
     s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Live Radian A', mfnz: '700' } })
-    s = sheetReducer(s, { type: 'addPilot' })
+    s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
     s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Live Radian B', mfnz: '701' } })
     for (const round of [1, 2, 3]) {
       for (const [pi, row] of [1, 2].entries()) {

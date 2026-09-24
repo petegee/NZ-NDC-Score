@@ -47,6 +47,9 @@ export function SheetPage({ base }: { base: string }) {
   const [report, setReport] = useState<CalcReport | null>(null)
   const [resultsSignal, setResultsSignal] = useState(0)
   const [paramsOpen, setParamsOpen] = useState(false)
+  // The Pilots input is a decision, not a live resize: shrinking drops cells,
+  // so the typed draft commits on blur/Enter instead of per keystroke.
+  const [pilotsDraft, setPilotsDraft] = useState<string | null>(null)
 
   // Latest sheet text for callbacks that must not re-trigger effects —
   // synced in an effect, read from event handlers and the debounced re-run.
@@ -138,9 +141,10 @@ export function SheetPage({ base }: { base: string }) {
     }
   }
 
-  // After the first successful run every edit schedules a debounced re-run;
-  // a refused run keeps the last good results on screen and the next
-  // keystroke simply retries.
+  // The Calculate press is the commit gate: nothing is submitted until the
+  // first successful run arms the live re-score. From then on every edit
+  // schedules a debounced re-run; a refused run keeps the last good results
+  // on screen and the next keystroke simply retries.
   const scheduleAuto = () => {
     if (!autoArmedRef.current || runningRef.current) return
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -180,7 +184,7 @@ export function SheetPage({ base }: { base: string }) {
       <h1>NZ NDC Score Spreadsheet</h1>
       <p className="hint">
         A spreadsheet like app for New Zealand NDC RC soaring contest organisers to enter and calculate scores: type anywhere, any time. <strong>Calculate</strong> sends the whole
-        sheet to the SoarScore scoring service and displays the scores and placings.
+        sheet to the SoarScore scoring service and displays the scores and placings — after that, every edit re-scores automatically.
       </p>
 
       <p>Powered by Soarscore https://github.com/petegee/Soarscore2</p>
@@ -242,6 +246,28 @@ export function SheetPage({ base }: { base: string }) {
             onChange={(e) => dispatch({ type: 'setRounds', rounds: Number(e.target.value) })}
           />
         </label>
+        <label>
+          Pilots
+          <input
+            inputMode="numeric"
+            value={pilotsDraft ?? String(state.pilots.length)}
+            title={
+              results
+                ? 'The field is fixed once the sheet is scored'
+                : 'Number of competitor rows — blank rows are fine, they stay blank until a name lands'
+            }
+            disabled={running || results !== null}
+            onChange={(e) => setPilotsDraft(e.target.value)}
+            onBlur={() => {
+              if (pilotsDraft === null) return
+              dispatch({ type: 'setPilotCount', count: Number(pilotsDraft) })
+              setPilotsDraft(null)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+            }}
+          />
+        </label>
         {catalogue && (
           <fieldset>
             <legend>Task per round</legend>
@@ -298,24 +324,13 @@ export function SheetPage({ base }: { base: string }) {
       </fieldset>
 
       {grids.length > 0 && (
-        <>
-          <SheetGrid
-            state={state}
-            grids={grids}
-            rowCountPerRound={rowCountPerRound}
-            penalties={penalties}
-            dispatch={dispatch}
-          />
-          <p className="add-competitor">
-            <button type="button" onClick={() => dispatch({ type: 'addPilot' })}>
-              + Add competitor
-            </button>
-            <span className="hint">
-              Blank rows are fine — they stay blank until a name lands. Remove (✕) clears a row
-              and moves every row below it up.
-            </span>
-          </p>
-        </>
+        <SheetGrid
+          state={state}
+          grids={grids}
+          rowCountPerRound={rowCountPerRound}
+          penalties={penalties}
+          dispatch={dispatch}
+        />
       )}
 
       <section className="calculate-bar">
@@ -331,6 +346,7 @@ export function SheetPage({ base }: { base: string }) {
               dispatch({ type: 'replace', state: initialSheet() })
               setReport(null)
               setProgress([])
+              setPilotsDraft(null)
               autoArmedRef.current = false
               setLastGood(null)
               if (timerRef.current) {
@@ -358,14 +374,16 @@ export function SheetPage({ base }: { base: string }) {
             ))}
           </div>
         )}
-        {progress.length > 0 && (
+        {progress.some((p) => p.status !== 'ok') && (
           <ol className="progress">
-            {progress.map((p, i) => (
-              <li key={i} className={`progress-${p.status}`}>
-                {p.label}
-                {p.detail ? ` — ${p.detail}` : ''}
-              </li>
-            ))}
+            {progress
+              .filter((p) => p.status !== 'ok')
+              .map((p, i) => (
+                <li key={i} className={`progress-${p.status}`}>
+                  {p.label}
+                  {p.detail ? ` — ${p.detail}` : ''}
+                </li>
+              ))}
           </ol>
         )}
       </section>
@@ -421,7 +439,6 @@ function SheetGrid({
               Round {rg.roundOrdinal} · <code>{rg.taskRef}</code> {rg.grid.taskName}
             </th>
           ))}
-          <th rowSpan={2} aria-label="remove" />
         </tr>
         <tr>
           {grids.map((rg, i) => {
@@ -542,16 +559,6 @@ function SheetGrid({
                 </Fragment>
               )
             })}
-            <td>
-              <button
-                type="button"
-                title="Remove this pilot row"
-                disabled={state.pilots.length <= 1}
-                onClick={() => dispatch({ type: 'removePilot', index: pi })}
-              >
-                ✕
-              </button>
-            </td>
           </tr>
         ))}
       </tbody>

@@ -34,7 +34,7 @@ function baseSheet(): SheetState {
   s = sheetReducer(s, { type: 'setTaskPick', roundIndex: 1, taskRef: 'G' })
   s = sheetReducer(s, { type: 'setRounds', rounds: 2 })
   s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
-  s = sheetReducer(s, { type: 'addPilot' })
+  s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
   s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu', mfnz: '2345' } })
   s = sheetReducer(s, {
     type: 'setCell',
@@ -198,7 +198,7 @@ describe('calculate — corrections', () => {
     const sheet = baseSheet()
     await runCalculate(api, sheet, noProgress)
 
-    const grown = sheetReducer(sheet, { type: 'addPilot' })
+    const grown = sheetReducer(sheet, { type: 'setPilotCount', count: sheet.pilots.length + 1 })
     const withPilot = sheetReducer(grown, {
       type: 'setPilot',
       index: 2,
@@ -313,7 +313,7 @@ describe('calculate — BeforeFlying parameters (NDC Radian)', () => {
     s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-19' })
     s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
     s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
-    s = sheetReducer(s, { type: 'addPilot' })
+    s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
     s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu', mfnz: '2345' } })
     // One stopwatch-style flightTime reading per pilot (no overfly metric in
     // this class — flightTime is a plain column) plus a landing distance.
@@ -422,7 +422,7 @@ function f3jSheet(): SheetState {
   s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-20' })
   s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
   s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
-  s = sheetReducer(s, { type: 'addPilot' })
+  s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
   s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu', mfnz: '2345' } })
   return s
 }
@@ -610,7 +610,7 @@ function f5jSheet(): SheetState {
   s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-21' })
   s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
   s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
-  s = sheetReducer(s, { type: 'addPilot' })
+  s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
   s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu', mfnz: '2345' } })
   return s
 }

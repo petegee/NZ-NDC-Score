@@ -77,7 +77,7 @@ export function initialSheet(): SheetState {
 }
 
 /** A fresh sheet opens with this many rows, like the paper scoresheet's
- * printed pilot list; the Add button appends more. */
+ * printed pilot list; the Contest panel's Pilots input resizes the field. */
 export const DEFAULT_PILOT_ROWS = 10
 
 export function emptyPilots(n: number): PilotRow[] {
@@ -90,8 +90,7 @@ export type SheetAction =
   | { type: 'setTaskPick'; roundIndex: number; taskRef: string }
   | { type: 'setParam'; name: string; text: string }
   | { type: 'setPilot'; index: number; patch: Partial<PilotRow> }
-  | { type: 'addPilot' }
-  | { type: 'removePilot'; index: number }
+  | { type: 'setPilotCount'; count: number }
   | { type: 'setCell'; key: string; text: string }
   | { type: 'classChosen'; contentHash: string; definition: ClassDefinition }
   | { type: 'replace'; state: SheetState }
@@ -103,6 +102,17 @@ function pruneCellsBeyond(
     const kept: Record<string, string> = {}
     for (const [key, text] of Object.entries(cells)) {
       if (sheetCellParts(key).roundOrdinal <= rounds) kept[key] = text
+    }
+    return kept
+  }
+
+function pruneCellsBeyondPilots(
+    cells: Record<string, string>,
+    pilots: number,
+  ): Record<string, string> {
+    const kept: Record<string, string> = {}
+    for (const [key, text] of Object.entries(cells)) {
+      if (sheetCellParts(key).pilotRow <= pilots) kept[key] = text
     }
     return kept
   }
@@ -123,21 +133,17 @@ export function sheetReducer(state: SheetState, action: SheetAction): SheetState
       const pilots = state.pilots.map((p, i) => (i === action.index ? { ...p, ...action.patch } : p))
       return { ...state, pilots }
     }
-    case 'addPilot':
-      return { ...state, pilots: [...state.pilots, { name: '', mfnz: '', email: '' }] }
-    case 'removePilot': {
-      // Row numbers are cell identity — removing a row re-keys the rows below.
-      const cells: Record<string, string> = {}
-      for (const [key, text] of Object.entries(state.cells)) {
-        const parts = sheetCellParts(key)
-        if (parts.pilotRow === action.index + 1) continue
-        const shifted =
-          parts.pilotRow > action.index + 1
-            ? sheetCellKey(parts.roundOrdinal, parts.pilotRow - 1, parts.flightSequence, parts.metric)
-            : key
-        cells[shifted] = text
-      }
-      return { ...state, pilots: state.pilots.filter((_, i) => i !== action.index), cells }
+    case 'setPilotCount': {
+      // The field size is decided up front (Contest panel) and cannot change
+      // once the sheet is scored — the draw freezes it service-side anyway.
+      // Row numbers are cell identity: shrinking drops every cell below the
+      // line (the same rule as setRounds), growing lays blank rows back on.
+      const count = Math.max(1, Math.floor(action.count) || 1)
+      const pilots =
+        count <= state.pilots.length
+          ? state.pilots.slice(0, count)
+          : [...state.pilots, ...emptyPilots(count - state.pilots.length)]
+      return { ...state, pilots, cells: pruneCellsBeyondPilots(state.cells, count) }
     }
     case 'setCell':
       return { ...state, cells: { ...state.cells, [action.key]: action.text } }
