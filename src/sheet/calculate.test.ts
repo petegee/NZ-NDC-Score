@@ -301,6 +301,39 @@ describe('calculate — refusals', () => {
     expect(fake.competitionByName('Waikato NDC', '2026-09-19')!.rounds[1].state).toBe('Drawn')
     expect(report.counts.failed).toBe(0)
   })
+
+  it('a round left open names its gaps — who has no entry, which flight misses which metrics', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    let s = sheetReducer(initialSheet(), { type: 'classChosen', contentHash: 'hash', definition: f3k })
+    s = sheetReducer(s, { type: 'setField', field: 'contestName', value: 'Waikato NDC' })
+    s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
+    s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-19' })
+    s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
+    s = sheetReducer(s, { type: 'setTaskPick', roundIndex: 0, taskRef: 'B' })
+    s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva' } })
+    s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
+    s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu' } })
+    s = sheetReducer(s, { type: 'setCell', key: sheetCellKey(1, 1, 1, 'flightTime'), text: '1:02' })
+    // Flight 2 exists (a recorded flag) but its flight time never landed —
+    // the entry's flight gap; Ben's row is silent — no entry at all.
+    s = sheetReducer(s, {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 2, 'launchedInWorkingTime'),
+      text: 'y',
+    })
+
+    const progress: string[] = []
+    const report = await runCalculate(api, s, (p) =>
+      progress.push(`${p.status} ${p.label}${p.detail ? ` — ${p.detail}` : ''}`),
+    )
+
+    expect(report.ok).toBe(true)
+    const open = progress.find((l) => l.startsWith('warn Round 1 left open'))
+    expect(open).toContain('2 gap(s)')
+    expect(open).toContain('Ben Tu has no entry')
+    expect(open).toContain('Ana Silva flight 2: Flight time not captured')
+  })
 })
 
 describe('calculate — BeforeFlying parameters (NDC Radian)', () => {

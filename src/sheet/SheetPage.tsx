@@ -15,6 +15,7 @@ import {
   phaseTasks,
   saveSheet,
   sheetCellKey,
+  sheetCellParts,
   sheetPenaltyKey,
   sheetReducer,
   sheetRoundGrids,
@@ -367,11 +368,15 @@ export function SheetPage({ base }: { base: string }) {
         )}
         {report && !running && report.cellErrors.length > 0 && (
           <div className="error-bar">
-            {report.cellErrors.map((c) => (
-              <p key={c.key}>
-                <code>{c.key}</code>: {c.error}
-              </p>
-            ))}
+            {report.cellErrors.map((c) => {
+              const parts = sheetCellParts(c.key)
+              return (
+                <p key={c.key}>
+                  Round {parts.roundOrdinal} · row {parts.pilotRow} · flight {parts.flightSequence} ·{' '}
+                  <code>{parts.metric}</code>: {c.error}
+                </p>
+              )
+            })}
           </div>
         )}
         {progress.some((p) => p.status !== 'ok') && (

@@ -3,6 +3,7 @@ import type {
   ClassDefinition,
   CompetitionView,
   MeasuredValue,
+  TaskRoundRecordingView,
 } from '../api/types'
 import { asNumber, measuredNumber } from '../api/types'
 import { ApiError } from '../api/wire'
@@ -307,20 +308,32 @@ async function pumpGroup(
 
 /** Gaps that scoring actually waits on: pilots with no entry, and flights
  * whose awaitingCapture list is non-empty (absence with a declared
- * whenNotRecorded value resolves itself and is not a gap). */
-function recordingGapCount(recording: {
-  groups: {
-    notRecordedCompetitorRefs: unknown[]
-    metricGaps: { flights: { awaitingCapture: unknown[] }[] }[]
-  }[]
-}): number {
-  return recording.groups.reduce(
-    (n, g) =>
-      n +
-      g.notRecordedCompetitorRefs.length +
-      g.metricGaps.reduce((m, e) => m + e.flights.filter((f) => f.awaitingCapture.length > 0).length, 0),
-    0,
-  )
+ * whenNotRecorded value resolves itself and is not a gap). The detail names
+ * them — who, which flight, which metrics — so "N gap(s)" is never the
+ * organiser's only clue; names come from the report's names map, metric
+ * labels from the round's columns (raw names as fallback). */
+function recordingGaps(
+  recording: TaskRoundRecordingView,
+  names: Record<string, string>,
+  metricLabel: (metric: string) => string,
+): { count: number; detail: string } {
+  const parts: string[] = []
+  let count = 0
+  for (const group of recording.groups) {
+    for (const ref of group.notRecordedCompetitorRefs) {
+      count++
+      parts.push(`${names[ref.value] ?? `competitor ${ref.value}`} has no entry`)
+    }
+    for (const entry of group.metricGaps) {
+      const who = names[entry.competitorRef.value] ?? `competitor ${entry.competitorRef.value}`
+      for (const flight of entry.flights) {
+        if (flight.awaitingCapture.length === 0) continue
+        count++
+        parts.push(`${who} flight ${flight.sequence}: ${flight.awaitingCapture.map(metricLabel).join(', ')} not captured`)
+      }
+    }
+  }
+  return { count, detail: parts.join('; ') }
 }
 
 export async function runCalculate(
@@ -885,12 +898,15 @@ export async function runCalculate(
               taskRoundOrdinal: taskRound.ordinal,
             })
           ).value
-          const gaps = recordingGapCount(recording)
+          const labelForMetric = (metric: string): string =>
+            rg.grid.columns.find((c) => c.metric === metric)?.label ?? metric
+          const { count: gaps, detail: gapDetail } = recordingGaps(recording, names, labelForMetric)
           if (gaps > 0) {
             emit({
               step: 'complete',
               label: `Round ${round.ordinal} left open — ${gaps} gap(s)`,
               status: 'warn',
+              detail: gapDetail,
             })
           } else {
             await api.completeTaskRound({

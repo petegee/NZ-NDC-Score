@@ -19,6 +19,15 @@ a complete sheet run itself; the user corrected the target — the button to
 remove was the results block's refresh, and the first Calculate must stay
 manually triggered.
 
+**Follow-up (same day, user request):** gaps that leave a round open now
+name themselves — "Round 1 left open — 2 gap(s)" gains a detail line from
+the recording view's own facts: `Ben Tu has no entry; Ana Silva flight 2:
+Flight time not captured` (pilot names from the report's names map, metric
+labels from the round's columns, raw metric names as fallback — no new
+service surface). Cell parse errors in the calculate bar are decoded the
+same way: `Round 1 · row 2 · flight 1 · <code>flightTime</code>: not a
+time` replaces the raw `r1|p2|f1|flightTime` key.
+
 ## How it landed (2026-09-25)
 
 - `results.tsx`: the "Refresh results" button and its `refresh` state are
