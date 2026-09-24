@@ -3,6 +3,7 @@ import type { CompetitionScore, GroupScore } from '../api/types'
 import type { GridColumn } from '../grid/schema'
 import { Verbatim } from '../scoring/ScoreTable'
 import { sheetCellKey, type SheetRoundGrid } from './sheet'
+import { useStickyHead } from './sticky-head'
 
 /** Round-block separation, identical to the entry sheet (SheetPage): a heavy
  * rule opens each group-round's column pair, alternate group-rounds carry a
@@ -52,6 +53,7 @@ export function ResultsTable({
   /** Flight-row count per grids index (the entry sheet's header spans). */
   rowCountPerRound?: number[]
 }) {
+  const { tableRef, headRowRef } = useStickyHead<HTMLTableElement>()
   const key = (r: { roundOrdinal: number; taskRoundOrdinal: number }) =>
     `${r.roundOrdinal}:${r.taskRoundOrdinal}`
 
@@ -123,9 +125,9 @@ export function ResultsTable({
   }
 
   return (
-    <table className="grid sheet-grid results-grid">
+    <table ref={tableRef} className="grid sheet-grid sticky-head results-grid">
       <thead>
-        <tr>
+        <tr ref={headRowRef}>
           <th rowSpan={2} className="pilot-col">
             Name
           </th>

@@ -24,6 +24,7 @@ import {
   type SheetState,
 } from './sheet'
 import { runCalculate, type CalcProgress, type CalcReport } from './calculate'
+import { useStickyHead } from './sticky-head'
 import { SheetResults } from './results'
 
 /** Debounce window for the live re-score after the first successful
@@ -182,116 +183,120 @@ export function SheetPage({ base }: { base: string }) {
 
   return (
     <main className="sheet-page">
-      <h1>NZ NDC Score Spreadsheet</h1>
-      <p className="hint">
-        A spreadsheet like app for New Zealand NDC RC soaring contest organisers to enter and calculate scores: type anywhere, any time. <strong>Calculate</strong> sends the whole
-        sheet to the SoarScore scoring service and displays the scores and placings — after that, every edit re-scores automatically.
-      </p>
-
-      <p>Powered by Soarscore https://github.com/petegee/Soarscore2</p>
+      <header className="page-head">
+        <h1>NDC Scoresheet</h1>
+        <p className="lede">
+          Type anywhere, any time. <strong>Calculate</strong> scores the whole sheet — after that,
+          every edit re-scores automatically.
+        </p>
+      </header>
 
       {loadError && <p className="error-bar">{loadError}</p>}
 
-      <fieldset className="header-block">
-        <legend>Contest</legend>
-        <label>
-          Class
-          <select
-            value={state.classContentHash ?? ''}
-            onChange={(e) => void pickClass(e.target.value)}
-          >
-            <option value="">— pick the NDC class —</option>
-            {(classList ?? []).map((c) => (
-              <option key={c.contentHash} value={c.contentHash}>
-                {c.faiDesignation ? `${c.faiDesignation} — ` : ''}
-                {c.name} · v{c.version}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Contest name
-          <input
-            value={state.contestName}
-            onChange={(e) => dispatch({ type: 'setField', field: 'contestName', value: e.target.value })}
-            placeholder="e.g. NZMAA NDC 2026"
-          />
-        </label>
-        <label>
-          Location
-          <input
-            value={state.location}
-            onChange={(e) => dispatch({ type: 'setField', field: 'location', value: e.target.value })}
-          />
-        </label>
-        <label>
-          Date
-          <input
-            type="date"
-            value={state.date}
-            onChange={(e) => dispatch({ type: 'setField', field: 'date', value: e.target.value })}
-          />
-        </label>
-        <label>
-          CD (signs the commands)
-          <input
-            value={state.cdName}
-            onChange={(e) => dispatch({ type: 'setField', field: 'cdName', value: e.target.value })}
-          />
-        </label>
-        <label>
-          Rounds
-          <input
-            inputMode="numeric"
-            value={String(state.rounds)}
-            onChange={(e) => dispatch({ type: 'setRounds', rounds: Number(e.target.value) })}
-          />
-        </label>
-        <label>
-          Pilots
-          <input
-            inputMode="numeric"
-            value={pilotsDraft ?? String(state.pilots.length)}
-            title={
-              results
-                ? 'The field is fixed once the sheet is scored'
-                : 'Number of competitor rows — blank rows are fine, they stay blank until a name lands'
-            }
-            disabled={running || results !== null}
-            onChange={(e) => setPilotsDraft(e.target.value)}
-            onBlur={() => {
-              if (pilotsDraft === null) return
-              dispatch({ type: 'setPilotCount', count: Number(pilotsDraft) })
-              setPilotsDraft(null)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-            }}
-          />
-        </label>
+      <section className="panel contest-card">
+        <h2 className="panel-title">Contest</h2>
+        <div className="field-grid">
+          <label className="span-3">
+            <span>Class</span>
+            <select
+              value={state.classContentHash ?? ''}
+              onChange={(e) => void pickClass(e.target.value)}
+            >
+              <option value="">— pick the NDC class —</option>
+              {(classList ?? []).map((c) => (
+                <option key={c.contentHash} value={c.contentHash}>
+                  {c.faiDesignation ? `${c.faiDesignation} — ` : ''}
+                  {c.name} · v{c.version}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="span-3">
+            <span>Contest name</span>
+            <input
+              value={state.contestName}
+              onChange={(e) => dispatch({ type: 'setField', field: 'contestName', value: e.target.value })}
+              placeholder="e.g. NZMAA NDC 2026"
+            />
+          </label>
+          <label className="span-2">
+            <span>Location</span>
+            <input
+              value={state.location}
+              onChange={(e) => dispatch({ type: 'setField', field: 'location', value: e.target.value })}
+            />
+          </label>
+          <label className="span-2">
+            <span>Date</span>
+            <input
+              type="date"
+              value={state.date}
+              onChange={(e) => dispatch({ type: 'setField', field: 'date', value: e.target.value })}
+            />
+          </label>
+          <label className="span-2">
+            <span>CD (signs the commands)</span>
+            <input
+              value={state.cdName}
+              onChange={(e) => dispatch({ type: 'setField', field: 'cdName', value: e.target.value })}
+            />
+          </label>
+          <label>
+            <span>Rounds</span>
+            <input
+              inputMode="numeric"
+              value={String(state.rounds)}
+              onChange={(e) => dispatch({ type: 'setRounds', rounds: Number(e.target.value) })}
+            />
+          </label>
+          <label>
+            <span>Pilots</span>
+            <input
+              inputMode="numeric"
+              value={pilotsDraft ?? String(state.pilots.length)}
+              title={
+                results
+                  ? 'The field is fixed once the sheet is scored'
+                  : 'Number of competitor rows — blank rows are fine, they stay blank until a name lands'
+              }
+              disabled={running || results !== null}
+              onChange={(e) => setPilotsDraft(e.target.value)}
+              onBlur={() => {
+                if (pilotsDraft === null) return
+                dispatch({ type: 'setPilotCount', count: Number(pilotsDraft) })
+                setPilotsDraft(null)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+              }}
+            />
+          </label>
+        </div>
         {catalogue && (
-          <fieldset>
-            <legend>Task per round</legend>
-            {Array.from({ length: state.rounds }, (_, i) => (
-              <label key={i}>
-                Round {i + 1}
-                <select
-                  value={state.taskPicks[i] ?? tasks[i % Math.max(tasks.length, 1)]?.code ?? ''}
-                  onChange={(e) => dispatch({ type: 'setTaskPick', roundIndex: i, taskRef: e.target.value })}
-                >
-                  {tasks.map((t) => (
-                    <option key={t.code} value={t.code}>
-                      {t.code} — {t.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </fieldset>
+          <section className="sub-panel">
+            <h3 className="sub-title">Task per round</h3>
+            <div className="field-grid">
+              {Array.from({ length: state.rounds }, (_, i) => (
+                <label key={i} className="span-2">
+                  <span>Round {i + 1}</span>
+                  <select
+                    value={state.taskPicks[i] ?? tasks[i % Math.max(tasks.length, 1)]?.code ?? ''}
+                    onChange={(e) => dispatch({ type: 'setTaskPick', roundIndex: i, taskRef: e.target.value })}
+                  >
+                    {tasks.map((t) => (
+                      <option key={t.code} value={t.code}>
+                        {t.code} — {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+          </section>
         )}
         {(setupParams.length > 0 || beforeFlyingParams.length > 0 || perRoundParamNames.length > 0) && (
-          <fieldset>
-            <legend className="params-legend">
+          <section className="sub-panel">
+            <div className="sub-head">
               <button
                 type="button"
                 className="params-toggle"
@@ -301,16 +306,19 @@ export function SheetPage({ base }: { base: string }) {
               >
                 {paramsOpen ? '−' : '+'}
               </button>
-              Parameters (defaults apply when blank)
-            </legend>
+              <h3 className="sub-title">Parameters</h3>
+              <span className="sub-note">defaults apply when blank</span>
+            </div>
             {paramsOpen && (
-              <>
+              <div className="field-grid">
                 {[...setupParams, ...beforeFlyingParams, ...grids.flatMap((g) => g.perRoundParams)]
                   .filter((p, i, all) => all.findIndex((q) => q.name === p.name) === i)
                   .map((p) => (
-                    <label key={p.name}>
-                      {p.name}
-                      {p.unit ? ` (${p.unit})` : ''} — {p.boundAt ?? 'CompetitionSetup'}
+                    <label key={p.name} className="span-2">
+                      <span>
+                        {p.name}
+                        {p.unit ? ` (${p.unit})` : ''} — {p.boundAt ?? 'CompetitionSetup'}
+                      </span>
                       <input
                         value={state.params[p.name] ?? ''}
                         placeholder={paramPlaceholder(p)}
@@ -318,11 +326,11 @@ export function SheetPage({ base }: { base: string }) {
                       />
                     </label>
                   ))}
-              </>
+              </div>
             )}
-          </fieldset>
+          </section>
         )}
-      </fieldset>
+      </section>
 
       {grids.length > 0 && (
         <SheetGrid
@@ -406,6 +414,10 @@ export function SheetPage({ base }: { base: string }) {
           rowCountPerRound={rowCountPerRound}
         />
       )}
+
+      <footer className="page-foot">
+        Powered by <a href="https://github.com/petegee/Soarscore2">Soarscore</a>
+      </footer>
     </main>
   )
 }
@@ -423,10 +435,11 @@ function SheetGrid({
   penalties: PenaltyOption[]
   dispatch: (action: Parameters<typeof sheetReducer>[1]) => void
 }) {
+  const { tableRef, headRowRef } = useStickyHead<HTMLTableElement>()
   return (
-    <table className="grid sheet-grid">
+    <table ref={tableRef} className="grid sheet-grid sticky-head">
       <thead>
-        <tr>
+        <tr ref={headRowRef}>
           <th rowSpan={2} className="pilot-col">
             Pilot
           </th>

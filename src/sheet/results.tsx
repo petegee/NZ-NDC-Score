@@ -19,6 +19,7 @@ export function SheetResults({
   cells,
   rowCompetitors,
   rowCountPerRound,
+  busy,
 }: {
   api: Api
   competitionId: string
@@ -31,6 +32,9 @@ export function SheetResults({
   cells?: Record<string, string>
   rowCompetitors?: Record<string, string>
   rowCountPerRound?: number[]
+  /** A run (manual or the debounced auto re-score) is in flight — the
+   * scores on screen are being refreshed, not stale. */
+  busy?: boolean
 }) {
   const [standings, setStandings] = useState<CompetitionScore | null>(null)
   const [standingsError, setStandingsError] = useState<string | null>(null)
@@ -82,12 +86,16 @@ export function SheetResults({
   if (schedule.length === 0) return null
 
   return (
-    <section className="results">
-      <h2>Results</h2>
-      <p className="hint">
-        Provisional — scores straight from the service, verbatim; metric readings echoed from your
-        sheet.
-      </p>
+    <section className="results panel">
+      <h2>
+        Results
+        {busy && (
+          <span className="scoring-indicator" role="status">
+            <span className="spinner" aria-hidden="true" />
+            Updating scores…
+          </span>
+        )}
+      </h2>
       {Object.entries(roundErrors).map(([k, msg]) => (
         <p key={k} role="alert">
           Round {k}: {msg}

@@ -397,14 +397,14 @@ describe('SheetPage', () => {
     try {
       render(<SheetPage base="http://api.test" />)
 
-      expect(screen.getByRole('heading', { name: 'NZ NDC Score Spreadsheet' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'NDC Scoresheet' })).toBeInTheDocument()
       await waitFor(() => expect(screen.getByText(/RC Hand-Launch Gliders/)).toBeInTheDocument())
 
       await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k-v2')
       // The grid derives from the definition: flight-time column headers appear.
       await waitFor(() => expect(screen.getAllByText(/Flight time/).length).toBeGreaterThan(0))
       expect(screen.getByRole('button', { name: 'Calculate' })).toBeInTheDocument()
-      expect(screen.getByText(/type anywhere, any time/)).toBeInTheDocument()
+      expect(screen.getByText(/Type anywhere, any time/)).toBeInTheDocument()
 
       // Ten rows by default; the Pilots input in the Contest panel resizes
       // the field (still enabled — nothing has been scored yet). The draft
@@ -436,7 +436,7 @@ describe('SheetPage', () => {
       await user.click(toggle)
       expect(screen.getByLabelText(/Landed In Safety Area/)).toBeInTheDocument()
 
-      await user.click(screen.getByRole('heading', { name: 'NZ NDC Score Spreadsheet' }))
+      await user.click(screen.getByRole('heading', { name: 'NDC Scoresheet' }))
       expect(screen.queryByLabelText(/Landed In Safety Area/)).not.toBeInTheDocument()
 
       await user.click(toggle)

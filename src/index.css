@@ -1,123 +1,348 @@
+/* NdcScore — design tokens + component styles (pure CSS, no framework).
+   The token block is the single source of color/radius/shadow values;
+   everything below consumes tokens. */
+
 :root {
-  font-family: system-ui, sans-serif;
-  line-height: 1.4;
-  color: #1a1a1a;
-  background: #f6f6f4;
+  --bg: #f4f5f2;
+  --surface: #ffffff;
+  --surface-2: #f6f7f3;
+  --border: #e1e3dc;
+  --border-strong: #c4c7bd;
+  --text: #24281f;
+  --text-muted: #6c7166;
+  --accent: #1a5d1a;
+  --accent-strong: #124a12;
+  --accent-soft: #dcf1dc;
+  --danger: #b3261e;
+  --danger-text: #86201a;
+  --danger-bg: #fdecea;
+  --danger-border: #f0c7c4;
+  --warn: #8a5a12;
+  --warn-bg: #fdf6e7;
+  --warn-border: #ecd9ae;
+  --round-rule: #7a8a99;
+  --round-rule-soft: #c3cdd6;
+  --round-tint: #eef3f8;
+  --head-bg: #eef1f4;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 2px rgba(28, 32, 24, 0.05), 0 4px 14px rgba(28, 32, 24, 0.06);
 }
 
-main {
-  margin: 0 auto;
-  padding: 1rem;
-}
-
-h1 {
-  font-size: 1.3rem;
-}
-
-button {
-  cursor: pointer;
-}
-
-label {
-  display: block;
-  margin: 0.5rem 0;
-}
-
-input,
-select {
-  display: block;
-  padding: 0.3rem;
-  margin-top: 0.15rem;
-  width: 100%;
-  max-width: 22rem;
+* {
   box-sizing: border-box;
 }
 
-fieldset label input,
-fieldset label select {
-  display: inline-block;
-  width: auto;
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  max-width: 84rem;
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem 2.5rem;
+}
+
+main.sheet-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+/* The sheet keeps the original size-to-columns behaviour (no stretch, no
+   scrollbar) even as a flex child. */
+main.sheet-page > table {
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+/* Page head: title plus a one-line lede. */
+.page-head h1 {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.page-head .lede {
+  margin: 0.3rem 0 0;
+  max-width: 62ch;
+  color: var(--text-muted);
+}
+
+/* Panels: the card look — white surface, hairline border, soft shadow. */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.1rem 1.25rem 1.25rem;
+}
+
+.panel-title {
+  margin: 0 0 0.95rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Contest card fields: a compact responsive grid instead of a tall stack. */
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.field-grid .span-3 {
+  grid-column: span 3;
+}
+
+.field-grid .span-2 {
+  grid-column: span 2;
+}
+
+.field-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+@media (max-width: 56rem) {
+  .field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .field-grid .span-3,
+  .field-grid .span-2 {
+    grid-column: span 2;
+  }
+}
+
+/* Sub-sections inside a card (task picks, parameters). */
+.sub-panel {
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.sub-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.sub-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.75rem;
+}
+
+.sub-head .sub-title {
+  margin: 0;
+}
+
+.sub-note {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+/* Inputs and selects: one consistent control style everywhere. */
+input,
+select {
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.42rem 0.55rem;
+  width: 100%;
+  max-width: none;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+input:disabled,
+select:disabled {
+  opacity: 0.55;
+  background: var(--surface-2);
+}
+
+input::placeholder {
+  color: #a4a89b;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+/* Buttons */
+button {
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.42rem 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.calculate {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 650;
+  font-size: 1rem;
+  padding: 0.55rem 1.6rem;
+}
+
+.calculate:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+.calculate:disabled {
+  opacity: 0.6;
+}
+
+button.reset {
+  background: transparent;
+}
+
+/* Status bars: tinted surface with a heavy left edge in the bar's color. */
+.error-bar,
+.warning-bar {
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--radius-sm);
+  margin: 0.5rem 0;
+  font-size: 0.92rem;
 }
 
 .error-bar {
-  border: 1px solid #b3261e;
-  background: #fdecea;
-  padding: 0.5rem 0.75rem;
-  margin: 0.5rem 0;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-left: 3px solid var(--danger);
+  color: var(--danger-text);
 }
 
 .warning-bar {
-  border: 1px solid #a2701e;
-  background: #fdf6e7;
-  padding: 0.5rem 0.75rem;
-  margin: 0.5rem 0;
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  border-left: 3px solid var(--warn);
+}
+
+.error-bar p,
+.warning-bar p {
+  margin: 0;
+}
+
+.error-bar p + p,
+.warning-bar p + p {
+  margin-top: 0.35rem;
 }
 
 .hint {
-  color: #666;
-  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-size: 0.88rem;
 }
 
 code {
-  background: #eceae6;
-  padding: 0 0.2rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0.02rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.88em;
 }
 
-.class-list {
-  list-style: none;
-  padding: 0;
-}
-
-.class-list li {
-  margin: 0.3rem 0;
-}
-
-.group-member {
-  display: inline-block;
-  margin-right: 0.6rem;
-  white-space: nowrap;
-}
-
-.class-list button {
-  width: 100%;
-  text-align: left;
-  padding: 0.5rem;
-  background: #fff;
-  border: 1px solid #ccc;
-}
-
+/* The entry/results grid. */
 table.grid {
   border-collapse: collapse;
-  background: #fff;
+  background: var(--surface);
 }
 
 table.grid th,
 table.grid td {
-  border: 1px solid #bbb;
+  border: 1px solid var(--border-strong);
   padding: 0.25rem 0.4rem;
   text-align: left;
+}
+
+table.grid thead th {
+  background: var(--head-bg);
+}
+
+/* Row banding on untinted cells — the round tint still reads through. */
+.sheet-grid tbody tr:nth-child(even) td:not(.round-alt) {
+  background: var(--surface-2);
+}
+
+/* Sticky column heads (class set by the component that measures row 1):
+   the round names pin at the viewport top, the metric heads pin just
+   below them via the measured --head-1-h height. */
+.sheet-grid.sticky-head thead tr:first-child th {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+.sheet-grid.sticky-head thead tr:nth-child(2) th {
+  position: sticky;
+  top: var(--head-1-h, 1.85rem);
+  z-index: 3;
+  box-shadow: 0 1px 0 var(--border-strong);
 }
 
 /* Round groups (Functional Overview: columns are visually grouped by
    group-round): a heavy rule opens each round block, a lighter rule opens
    each flight-row group inside it, alternate rounds carry a tint. Sheet
-   cells go transparent so the tint reads through. The grid sizes to its
-   columns — no fixed width, no scrollbar. */
+   cells go transparent so the tint reads through. */
 .sheet-grid .round-start {
-  border-left: 3px solid #7a8a99;
+  border-left: 3px solid var(--round-rule);
 }
 
 .sheet-grid .flight-start {
-  border-left: 2px solid #c3cdd6;
+  border-left: 2px solid var(--round-rule-soft);
 }
 
 .sheet-grid .round-alt {
-  background: #eef3f8;
+  background: var(--round-tint);
 }
 
-.sheet-grid td input.cell,
-.sheet-grid td .flag-cell {
-  background: transparent;
+/* The focused cell goes green — the organiser's eye follows the entry
+   cursor across the grid (inputs and flag buttons alike). */
+.sheet-grid td input.cell:focus,
+.sheet-grid td .flag-cell:focus {
+  background: var(--accent-soft);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 /* Identity columns must hold a full name and a 5-digit MFNZ number. */
@@ -164,7 +389,7 @@ table.grid td {
 
 .sheet-grid .target-label {
   font-weight: 400;
-  color: #555;
+  color: var(--text-muted);
 }
 
 /* Results table (results.tsx): numbers right-aligned like sheet cells. */
@@ -173,22 +398,42 @@ table.grid td {
   text-align: right;
 }
 
+/* Sheet cells: borderless boxes on the banded sheet; a faint border on
+   hover marks the editable cell. */
 input.cell {
   width: 100%;
   max-width: 4.25rem;
-  box-sizing: border-box;
   padding: 0.15rem 0.25rem;
   margin: 0;
   text-align: right;
+  border: 1px solid transparent;
+  border-radius: 3px;
+}
+
+input.cell:hover:not(:focus):not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+input.cell:disabled {
+  color: #b0b4a9;
+  opacity: 1;
 }
 
 .flag-cell {
   min-width: 2.2rem;
   padding: 0.2rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.flag-cell:hover:not(:disabled) {
+  border-color: var(--border-strong);
 }
 
 .flag-blank {
-  color: #aaa;
+  color: #a4a89b;
+  border-style: dashed;
 }
 
 .penalty-cell {
@@ -207,11 +452,11 @@ input.cell {
   min-width: 14rem;
   max-height: 14rem;
   overflow: auto;
-  background: #fff;
-  border: 1px solid #999;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 0.35rem 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(28, 32, 24, 0.16);
+  padding: 0.35rem 0.55rem;
   text-align: left;
 }
 
@@ -223,9 +468,10 @@ input.cell {
   white-space: nowrap;
   padding: 0.15rem 0;
   margin: 0;
+  font-size: 0.92rem;
 }
 
-/* Menu controls must not inherit the form-wide block/100% width — it blows
+/* Menu controls must not inherit the card-wide block/100% width — it blows
    every checkbox out to the menu's full width and scatters the text. */
 .penalty-menu input {
   flex: 0 0 auto;
@@ -235,6 +481,10 @@ input.cell {
   margin-top: 0;
 }
 
+.penalty-menu input[type='checkbox'] {
+  padding: 0;
+}
+
 .penalty-menu label.assumed-value input {
   width: 4.5rem;
   text-align: left;
@@ -242,7 +492,7 @@ input.cell {
 
 .penalty-list {
   display: block;
-  color: #555;
+  color: var(--text-muted);
   max-width: 10rem;
 }
 
@@ -250,25 +500,33 @@ input.cell {
   font-weight: 700;
 }
 
-.params-legend {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
 .params-toggle {
-  min-width: 1.4rem;
-  padding: 0 0.35rem;
+  flex: 0 0 auto;
+  min-width: 1.7rem;
+  padding: 0.1rem 0;
   font-weight: 700;
+  line-height: 1.3;
 }
 
-button.reset {
-  background: #eee;
-  color: #333;
+/* Calculate bar: buttons inline, errors and progress full width below. */
+.calculate-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.8rem;
 }
 
-button.reset:disabled {
-  opacity: 0.5;
+.calculate-bar .error-bar,
+.calculate-bar .warning-bar,
+.calculate-bar ol.progress {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+ol.progress {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  padding-left: 1.25rem;
 }
 
 .progress li.progress-warn::marker {
@@ -279,18 +537,50 @@ button.reset:disabled {
   content: '✗ ';
 }
 
-.calculate {
+/* Results */
+.results h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0 0 0.9rem;
   font-size: 1.05rem;
-  padding: 0.5rem 1.4rem;
-  background: #1a5d1a;
-  border-color: #1a5d1a;
-  color: #fff;
+  font-weight: 700;
 }
 
-.calculate:disabled {
-  opacity: 0.6;
+.results [role='alert'] {
+  margin: 0 0 0.5rem;
+  color: var(--danger-text);
 }
 
-ol.progress {
-  font-size: 0.9rem;
+.scoring-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.page-foot {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.page-foot a {
+  color: inherit;
 }
