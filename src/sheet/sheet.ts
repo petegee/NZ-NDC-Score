@@ -27,7 +27,6 @@ export interface PilotRow {
 export interface SheetState {
   classContentHash: string | null
   classDefinition: ClassDefinition | null
-  contestName: string
   location: string
   date: string
   cdName: string
@@ -64,7 +63,6 @@ export function initialSheet(): SheetState {
   return {
     classContentHash: null,
     classDefinition: null,
-    contestName: '',
     location: '',
     date: '',
     cdName: '',
@@ -85,7 +83,7 @@ export function emptyPilots(n: number): PilotRow[] {
 }
 
 export type SheetAction =
-  | { type: 'setField'; field: 'contestName' | 'location' | 'date' | 'cdName'; value: string }
+  | { type: 'setField'; field: 'location' | 'date' | 'cdName'; value: string }
   | { type: 'setRounds'; rounds: number }
   | { type: 'setTaskPick'; roundIndex: number; taskRef: string }
   | { type: 'setParam'; name: string; text: string }
@@ -175,7 +173,13 @@ const SHEET_STORAGE_KEY = 'ndcscore.sheet.v1'
 export function loadSheet(): SheetState {
   try {
     const raw = localStorage.getItem(SHEET_STORAGE_KEY)
-    if (raw) return { ...initialSheet(), ...(JSON.parse(raw) as Partial<SheetState>) }
+    if (raw) {
+      const saved = JSON.parse(raw) as Partial<SheetState> & { contestName?: string }
+      // The contest name field is gone (bug #4): a draft saved before the
+      // change must not resurrect the removed field.
+      delete saved.contestName
+      return { ...initialSheet(), ...saved }
+    }
   } catch {
     // unreadable draft — start fresh
   }
@@ -443,7 +447,6 @@ export function validateSheet(state: SheetState): SheetValidation {
   const definition = state.classDefinition
 
   if (!definition || !state.classContentHash) problems.push('Pick the adopted class first.')
-  if (!state.contestName.trim()) problems.push('Contest name is required.')
   if (!state.location.trim()) problems.push('Location is required.')
   if (!state.date.trim()) problems.push('Date is required.')
   if (!state.cdName.trim()) problems.push('CD name is required (it signs the commands).')

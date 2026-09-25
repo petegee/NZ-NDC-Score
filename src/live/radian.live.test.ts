@@ -9,6 +9,13 @@ const BASE = process.env.LIVE_API_BASE ?? 'http://localhost:5000'
 const LIVE = process.env.LIVE_API === '1'
 const d = describe.skipIf(!LIVE)
 
+// The fabricated contest name (date, location, class) replaced the typed
+// unique name as the run's identity — a per-run date keeps the live repro
+// from adopting a previous run's drawn, field-frozen competition.
+const liveDate = new Date(
+  Date.UTC(2026, 0, 1 + (Date.now() % 28)),
+).toISOString().slice(0, 10)
+
 d('live repro: NDC Radian', () => {
   it('calculates a correctly filled sheet', async () => {
     const api = createApi(BASE)
@@ -18,9 +25,8 @@ d('live repro: NDC Radian', () => {
     const definition = (await api.getClassDefinition(rc!.contentHash)).value
 
     let s = sheetReducer(initialSheet(), { type: 'classChosen', contentHash: rc!.contentHash, definition })
-    s = sheetReducer(s, { type: 'setField', field: 'contestName', value: `Radian live ${Date.now()}` })
     s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Test Field' })
-    s = sheetReducer(s, { type: 'setField', field: 'date', value: new Date().toISOString().slice(0, 10) })
+    s = sheetReducer(s, { type: 'setField', field: 'date', value: liveDate })
     s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Live CD' })
     s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Live Radian A', mfnz: '700' } })
     s = sheetReducer(s, { type: 'setPilotCount', count: 2 })

@@ -242,7 +242,6 @@ describe('validation', () => {
     let s = f3kSheet()
     s = {
       ...s,
-      contestName: 'NDC',
       location: 'Field',
       date: '2026-09-19',
       cdName: 'Pete',

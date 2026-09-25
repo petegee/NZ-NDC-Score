@@ -274,6 +274,54 @@ button.reset {
   font-size: 0.88rem;
 }
 
+.field-error {
+  color: var(--danger-text);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+/* Date field: forgiving text entry with a calendar picker alongside. */
+.date-field {
+  display: flex;
+  gap: 0.4rem;
+  position: relative;
+}
+
+.date-field input[type='text'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.date-picker-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  padding: 0.35rem 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.date-picker-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.date-native {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
 code {
   background: var(--surface-2);
   border: 1px solid var(--border);

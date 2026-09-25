@@ -11,10 +11,12 @@ import { applyRounding } from '../grid/precision'
 import { parseCellText } from '../grid/parse'
 import type { GridColumn } from '../grid/schema'
 import { formatClock, splitStopwatch } from '../grid/stopwatch'
+import { fabricateContestName } from './contestName'
 import {
   chainCommands,
   captureReducer,
   cellKey as wireCellKey,
+  cellParts,
   type CaptureAction,
   type CaptureState,
   type PendingCommand,
@@ -84,6 +86,12 @@ export interface CalcReport {
   /** Sheet pilot row (1-based) → competitor id. */
   rowCompetitors: Record<string, string>
 }
+
+/** The identity mapping the previous successful run established (sheet
+ * row → competitor, and the name each competitor's row carried then). It is
+ * the orchestration memory between two runs of one page session — the wire
+ * stays the only store; nothing here is score arithmetic. */
+export type CalcPrior = Pick<CalcReport, 'competitionId' | 'rowCompetitors' | 'names'>
 
 export type ProgressSink = (p: CalcProgress) => void
 
@@ -340,6 +348,7 @@ export async function runCalculate(
   api: Api,
   sheet: SheetState,
   onProgress?: ProgressSink,
+  prior?: CalcPrior,
 ): Promise<CalcReport> {
   const steps: CalcProgress[] = []
   const problems: string[] = []
@@ -386,22 +395,47 @@ export async function runCalculate(
     .filter(({ row }) => row.name.trim())
 
   // --- 2 · find-or-create competition ---
+  // The contest has no name field on the sheet (bug #4): the identity is
+  // fabricated from the header — date, location, adopted class — in one
+  // place (`fabricateContestName`). The same header fabricates the same
+  // name, so a re-calc finds the same competition; a second same-day event
+  // at the same venue and class collides and is reported, never guessed.
   emit({ step: 'competition', label: 'Finding or creating the contest…', status: 'ok' })
+  const contestName = fabricateContestName({
+    location: sheet.location,
+    date: sheet.date,
+    classDefinition: definition,
+  })
   let competitionId: string
   try {
     const found = await api.findCompetitions({
       onOrAfter: sheet.date,
       classContentHash: sheet.classContentHash ?? '',
     })
-    const wanted = sheet.contestName.trim().toLowerCase()
-    const match = found.value.find(
+    const wanted = contestName.toLowerCase()
+    const matches = found.value.filter(
       (c) => c.name.trim().toLowerCase() === wanted && c.startDate === sheet.date,
     )
-    competitionId = match
-      ? match.id.value
+    if (matches.length > 1) {
+      // Soarscore's read is the truth: it already holds more than one
+      // contest with the sheet's fabricated identity (a second same-day
+      // event). The client cannot tell them apart and must never silently
+      // pick one — the run stops here.
+      emit({
+        step: 'competition',
+        label: `${matches.length} contests are already named "${contestName}" starting ${sheet.date}`,
+        status: 'error',
+        detail: `Soarscore holds ${matches.length} of them (${matches
+          .map((c) => `${c.id.value} · ${c.status}`)
+          .join(', ')}), and the sheet cannot tell them apart. Rename one on the wire, or run this sheet against a different location, date or class.`,
+      })
+      return report
+    }
+    competitionId = matches[0]
+      ? matches[0].id.value
       : (
           await api.createCompetition({
-            name: sheet.contestName.trim(),
+            name: contestName,
             location: sheet.location.trim(),
             startDate: sheet.date,
             endDate: sheet.date,
@@ -454,10 +488,52 @@ export async function runCalculate(
   // --- 4 · find-or-register persons and competitors ---
   emit({ step: 'pilots', label: 'Registering the field…', status: 'ok' })
   const personByRow = new Map<number, string>()
+  // Prior identity: the last successful run mapped sheet rows to
+  // competitors. A row is a position on the sheet, not a name (law 4 —
+  // overtype and recalculate, the organiser is never asked): when the sheet
+  // renames a row, the same pilot keeps their competitor, draw spot and
+  // committed cells, and the person record is renamed on the wire. The
+  // prior mapping outranks any name match — a name match to a stranger must
+  // never re-bind a flown row, and two rows renamed at once (a swap through
+  // intermediate names) is only resolvable this way.
+  const priorByRow = new Map<number, { personId: string; priorName?: string }>()
+  if (prior && prior.competitionId === competitionId) {
+    for (const [rowStr, competitorId] of Object.entries(prior.rowCompetitors)) {
+      const index = Number(rowStr) - 1
+      const competitor = fold.competition.competitors.find((c) => c.id.value === competitorId)
+      if (!competitor || !sheet.pilots[index]?.name.trim()) continue
+      priorByRow.set(index, { personId: competitor.personRef.value, priorName: prior.names[competitorId] })
+    }
+    // Competitors the sheet no longer names (a blanked row mid-retype)
+    // keep their last sheet name for display instead of a raw id.
+    for (const [id, name] of Object.entries(prior.names)) names[id] = name
+  }
+  const renameFailed: string[] = []
   try {
+    /** Rows whose name resolves to nobody — deferred so a single renamed
+     * row can be recovered by elimination before anything registers. */
+    const orphans: { index: number; name: string; email: string; mfnz: string }[] = []
     for (const { row, index } of namedPilots) {
       const name = row.name.trim()
-      const email = row.email.trim() || placeholderEmail(name)
+      const known = priorByRow.get(index)
+      if (known) {
+        // The row keeps its competitor identity; a changed name renames the
+        // same person (never a no-op rename — the sheet text is compared to
+        // what this row last sent).
+        const same =
+          known.priorName !== undefined &&
+          known.priorName.trim().toLowerCase() === name.toLowerCase()
+        if (!same) {
+          try {
+            await api.renamePerson(known.personId, name)
+          } catch (error) {
+            renameFailed.push(`${name} (${errorDetail(error)})`)
+            continue
+          }
+        }
+        personByRow.set(index, known.personId)
+        continue
+      }
       const found = await api.findPeople({ name })
       const exact = found.value.find((p) => p.name.trim().toLowerCase() === name.toLowerCase())
       if (exact) {
@@ -465,20 +541,53 @@ export async function runCalculate(
         names[exact.id.value] = exact.name
         continue
       }
+      orphans.push({ index, name, email: row.email.trim(), mfnz: row.mfnz.trim() })
+    }
+    // A renamed row without prior identity — the page was reloaded and the
+    // report mapping (session memory) is gone. When exactly one named row
+    // matches nobody and exactly one drawn competitor matches no row, the
+    // two are the same pilot under a corrected name; anything more ambiguous
+    // (several renames, or a rename mixed with a genuinely new pilot) is not
+    // guessable and falls through to registration.
+    if (orphans.length === 1) {
+      const claimed = new Set<string>()
+      const competitorByPerson = new Map(
+        fold.competition.competitors.map((c) => [c.personRef.value, c.id.value] as const),
+      )
+      for (const personId of personByRow.values()) {
+        const cid = competitorByPerson.get(personId)
+        if (cid) claimed.add(cid)
+      }
+      const unclaimed = fold.competition.competitors.filter((c) => !claimed.has(c.id.value))
+      if (unclaimed.length === 1) {
+        const orphan = orphans[0]
+        const target = unclaimed[0]
+        try {
+          await api.renamePerson(target.personRef.value, orphan.name)
+          personByRow.set(orphan.index, target.personRef.value)
+          orphans.length = 0
+        } catch (error) {
+          renameFailed.push(`${orphan.name} (${errorDetail(error)})`)
+          orphans.length = 0
+        }
+      }
+    }
+    for (const orphan of orphans) {
+      const email = orphan.email || placeholderEmail(orphan.name)
       try {
         const created = await api.registerPerson({
-          name,
+          name: orphan.name,
           contact: { email },
-          club: row.mfnz.trim() ? { clubName: '', membershipNumber: row.mfnz.trim() } : null,
+          club: orphan.mfnz ? { clubName: '', membershipNumber: orphan.mfnz } : null,
         })
-        personByRow.set(index, created.value)
-        names[created.value] = name
+        personByRow.set(orphan.index, created.value)
+        names[created.value] = orphan.name
       } catch (error) {
         if (error instanceof ApiError && error.code === 'eventStore.uniqueConstraintViolation') {
           const byEmail = await api.findPeople({ email })
-          const match = byEmail.value.find((p) => p.name.trim().toLowerCase() === name.toLowerCase())
+          const match = byEmail.value.find((p) => p.name.trim().toLowerCase() === orphan.name.toLowerCase())
           if (match) {
-            personByRow.set(index, match.id.value)
+            personByRow.set(orphan.index, match.id.value)
             names[match.id.value] = match.name
             continue
           }
@@ -527,6 +636,15 @@ export async function runCalculate(
           'competition.field.frozen — adding competitors to an accepted draw needs a Soarscore capability that does not exist yet; their cells are skipped.',
       })
     }
+    if (renameFailed.length > 0) {
+      emit({
+        step: 'pilots',
+        label: `Rename refused: ${renameFailed.join('; ')}`,
+        status: 'warn',
+        detail:
+          'The row keeps the wire name it had; its cells are skipped and the next edit retries the rename. Results keep showing the last name the sheet sent.',
+      })
+    }
   } catch (error) {
     emit({ step: 'pilots', label: 'Registering the field failed', status: 'error', detail: errorDetail(error) })
     return report
@@ -546,6 +664,10 @@ export async function runCalculate(
       rowCompetitors[String(index + 1)] = competitorId
     }
   }
+  // The reverse read for the deselected-compliance reconciliation: committed
+  // wire keys name the competitor, and its sheet cell is addressed by row.
+  const rowByCompetitor = new Map<string, number>()
+  for (const [index, competitorId] of competitorByRow) rowByCompetitor.set(competitorId, index + 1)
 
   // --- 5 · draw or adopt the drawn schedule ---
   const roundsKind = phaseRoundsKind(definition)
@@ -850,6 +972,52 @@ export async function runCalculate(
             }
           }
         }
+        }
+        // Deselected compliance — the organiser unticked a More-list option
+        // (or cleared its value): the sheet cell is blank, and blank on an
+        // assumed metric is the declared whenNotRecorded assumption. A
+        // captured value has no un-record on the wire — the engine's
+        // assumption insertion triggers on absence alone and a recorded value
+        // always wins — so the only way back is the same explicit amend the
+        // stopwatch split uses for a corrected-away overfly: amend to the
+        // assumed value under the auto reason, never the organiser's. The
+        // walk reads the committed cells the event log shows, not the sheet's
+        // visible rows, so a deselected option comes back even when its
+        // flight row collapsed with it. The stopwatch pair stays owned by the
+        // split (a cleared reading is not an undo).
+        const groupCompetitors = new Set(group.competitorRefs.map((c) => c.value))
+        const assumedByMetric = new Map(
+          rg.grid.columns
+            .filter((c) => c.whenNotRecorded !== undefined && c.stopwatchRole === undefined)
+            .map((c) => [c.metric, c] as const),
+        )
+        for (const [wireKey, cell] of Object.entries(rebuilt.cells)) {
+          const parts = cellParts(wireKey)
+          if (!groupCompetitors.has(parts.competitorId)) continue
+          const row = rowByCompetitor.get(parts.competitorId)
+          if (row === undefined) continue
+          const col = assumedByMetric.get(parts.metric)
+          if (!col) continue
+          const sheetKey = sheetCellKey(round.ordinal, row, parts.flightSequence, parts.metric)
+          if ((sheet.cells[sheetKey] ?? '').trim()) continue
+          const assumed = col.whenNotRecorded as MeasuredValue
+          if (sameMeasurement(cell.value, assumed, col)) {
+            counts.unchanged++
+            continue
+          }
+          if (taskRound.state === 'Complete') needReopen = true
+          captureState.queue.push(
+            ...chainCommands(
+              wireKey,
+              parts.competitorId,
+              parts.flightSequence,
+              parts.metric,
+              assumed,
+              captureState.entries,
+              nextCommandId,
+              { reason: CORRECTION_REASON },
+            ),
+          )
         }
       await pumpGroup(api, captureState, { competitionId, cdName, counts })
       }

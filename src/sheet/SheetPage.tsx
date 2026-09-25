@@ -24,6 +24,7 @@ import {
   type SheetState,
 } from './sheet'
 import { runCalculate, type CalcProgress, type CalcReport } from './calculate'
+import { parseDateText } from './dateText'
 import { useStickyHead } from './sticky-head'
 import { SheetResults } from './results'
 
@@ -52,6 +53,19 @@ export function SheetPage({ base }: { base: string }) {
   // The Pilots input is a decision, not a live resize: shrinking drops cells,
   // so the typed draft commits on blur/Enter instead of per keystroke.
   const [pilotsDraft, setPilotsDraft] = useState<string | null>(null)
+  // The Date input takes free text (the native date widget forced dd/mm and
+  // let a 5-digit year through to the wire): the draft parses as it is
+  // typed — a valid reading commits the ISO date straight away — and on
+  // blur/Enter the field normalises to the committed ISO. An unparseable
+  // draft keeps last good value on the wire and the error under the field.
+  // A calendar button beside it opens the browser's picker (a hidden native
+  // date input) for mouse-first organisers; a picked date commits the same
+  // ISO through the same path.
+  const [dateDraft, setDateDraft] = useState<string | null>(null)
+  const datePickerRef = useRef<HTMLInputElement>(null)
+  const dateDraftParse = dateDraft === null ? null : parseDateText(dateDraft)
+  const dateError =
+    dateDraftParse && !dateDraftParse.ok && dateDraft!.trim() !== '' ? dateDraftParse.error : null
 
   // Latest sheet text for callbacks that must not re-trigger effects —
   // synced in an effect, read from event handlers and the debounced re-run.
@@ -66,6 +80,10 @@ export function SheetPage({ base }: { base: string }) {
   const dirtyRef = useRef(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [lastGood, setLastGood] = useState<CalcReport | null>(null)
+  // The prior identity mapping for the next orchestrator run (sheet row →
+  // competitor): the last successful report, read through a ref so a run
+  // started by the debounced timer always sees the latest mapping.
+  const lastGoodRef = useRef<CalcReport | null>(null)
 
   // The sheet text is the only client state — persist every keystroke.
   useEffect(() => {
@@ -92,6 +110,10 @@ export function SheetPage({ base }: { base: string }) {
   const perRoundParamNames = [
     ...new Set(grids.flatMap((rg) => rg.perRoundParams.map((p) => p.name))),
   ]
+
+  // The contest has no name field (bug #4): calculate.ts fabricates the name
+  // Soarscore sees from the date, location and adopted class — the organiser
+  // never types one and never sees one.
 
   // Header column spans must cover the widest pilot's visible flight rows.
   const rowCountPerRound = useMemo(
@@ -126,12 +148,13 @@ export function SheetPage({ base }: { base: string }) {
     setRunning(true)
     setProgress([])
     setReport(null)
-    const rep = await runCalculate(api, stateRef.current, (p) => setProgress((prev) => [...prev, p]))
+    const rep = await runCalculate(api, stateRef.current, (p) => setProgress((prev) => [...prev, p]), lastGoodRef.current ?? undefined)
     setReport(rep)
     runningRef.current = false
     setRunning(false)
     if (rep.ok && rep.competitionId) {
       setLastGood(rep)
+      lastGoodRef.current = rep
       autoArmedRef.current = true
     }
     if (rep.competitionId && rep.schedule.length > 0) setResultsSignal((n) => n + 1)
@@ -212,14 +235,6 @@ export function SheetPage({ base }: { base: string }) {
             </select>
           </label>
           <label className="span-3">
-            <span>Contest name</span>
-            <input
-              value={state.contestName}
-              onChange={(e) => dispatch({ type: 'setField', field: 'contestName', value: e.target.value })}
-              placeholder="e.g. NZMAA NDC 2026"
-            />
-          </label>
-          <label className="span-2">
             <span>Location</span>
             <input
               value={state.location}
@@ -228,11 +243,67 @@ export function SheetPage({ base }: { base: string }) {
           </label>
           <label className="span-2">
             <span>Date</span>
-            <input
-              type="date"
-              value={state.date}
-              onChange={(e) => dispatch({ type: 'setField', field: 'date', value: e.target.value })}
-            />
+            <div className="date-field">
+              <input
+                type="text"
+                value={dateDraft ?? state.date}
+                placeholder="d/m/yyyy — e.g. 5/9/2026"
+                onChange={(e) => {
+                  const text = e.target.value
+                  setDateDraft(text)
+                  const parsed = parseDateText(text)
+                  if (parsed.ok) {
+                    dispatch({ type: 'setField', field: 'date', value: parsed.iso })
+                  }
+                }}
+                onBlur={() => {
+                  if (dateDraft === null) return
+                  const parsed = parseDateText(dateDraft)
+                  if (parsed.ok) {
+                    dispatch({ type: 'setField', field: 'date', value: parsed.iso })
+                    setDateDraft(null)
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                }}
+              />
+              <button
+                type="button"
+                className="date-picker-btn"
+                aria-label="Pick the contest date"
+                title="Pick a date"
+                onClick={() => {
+                  try {
+                    datePickerRef.current?.showPicker()
+                  } catch {
+                    // no picker in this browser — the text field still works
+                  }
+                }}
+              >
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                  <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                  <line x1="1.5" y1="6" x2="14.5" y2="6" stroke="currentColor" strokeWidth="1.5" />
+                  <line x1="5" y1="1" x2="5" y2="4" stroke="currentColor" strokeWidth="1.5" />
+                  <line x1="11" y1="1" x2="11" y2="4" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+              </button>
+              <input
+                ref={datePickerRef}
+                type="date"
+                className="date-native"
+                aria-label="date picker source"
+                tabIndex={-1}
+                onChange={(e) => {
+                  const iso = e.target.value
+                  e.target.value = ''
+                  if (!iso) return
+                  dispatch({ type: 'setField', field: 'date', value: iso })
+                  setDateDraft(null)
+                }}
+              />
+            </div>
+            {dateError && <small className="field-error">{dateError}</small>}
           </label>
           <label className="span-2">
             <span>CD (signs the commands)</span>
@@ -358,6 +429,7 @@ export function SheetPage({ base }: { base: string }) {
               setPilotsDraft(null)
               autoArmedRef.current = false
               setLastGood(null)
+              lastGoodRef.current = null
               if (timerRef.current) {
                 clearTimeout(timerRef.current)
                 timerRef.current = null

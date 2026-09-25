@@ -12,15 +12,21 @@ const d = describe.skipIf(!LIVE)
 
 const stamp = Date.now()
 
-function sheetFor(definition: ClassDefinition, contestName: string): SheetState {
+/** A distinct ISO date per live run: the fabricated contest name (date,
+ * location, class) replaced the typed unique name as the run's identity, so
+ * two runs must not share a date or the second would adopt the first's
+ * drawn, field-frozen competition. */
+const liveDate = (salt: number): string =>
+  new Date(Date.UTC(2026, 0, 1 + ((stamp + salt) % 28))).toISOString().slice(0, 10)
+
+function sheetFor(definition: ClassDefinition, date: string): SheetState {
   let s = sheetReducer(initialSheet(), {
     type: 'classChosen',
     contentHash: definition.name, // replaced by the real hash below
     definition,
   })
-  s = sheetReducer(s, { type: 'setField', field: 'contestName', value: contestName })
   s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Test Field' })
-  s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-19' })
+  s = sheetReducer(s, { type: 'setField', field: 'date', value: date })
   s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Live CD' })
   return s
 }
@@ -33,8 +39,8 @@ d('Calculate: the whole sheet → one command sequence, against a live API', () 
     expect(ales).toBeDefined()
     const definition = (await api.getClassDefinition(ales!.contentHash)).value
 
-    const contestName = `Live ALES sheet ${stamp}`
-    let sheet = sheetFor(definition, contestName)
+    const contestDate = liveDate(0)
+    let sheet = sheetFor(definition, contestDate)
     sheet = sheetReducer(sheet, { type: 'classChosen', contentHash: ales!.contentHash, definition })
     sheet = sheetReducer(sheet, { type: 'setParam', name: 'minNewGroup', text: '3' })
     for (const [i, name] of ['Live Pilot A', 'Live Pilot B', 'Live Pilot C'].entries()) {
@@ -97,8 +103,8 @@ d('Calculate: the whole sheet → one command sequence, against a live API', () 
     expect(f3k).toBeDefined()
     const definition = (await api.getClassDefinition(f3k!.contentHash)).value
 
-    const contestName = `Live F3K sheet ${stamp}`
-    let sheet = sheetFor(definition, contestName)
+    const contestDate = liveDate(1)
+    let sheet = sheetFor(definition, contestDate)
     sheet = sheetReducer(sheet, { type: 'classChosen', contentHash: f3k!.contentHash, definition })
     sheet = sheetReducer(sheet, { type: 'setRounds', rounds: 2 })
     sheet = sheetReducer(sheet, { type: 'setTaskPick', roundIndex: 0, taskRef: 'B' })

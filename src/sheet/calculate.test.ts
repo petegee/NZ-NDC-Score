@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ClassDefinition } from '../api/types'
 import type { GridColumn } from '../grid/schema'
+import { ApiError } from '../api/wire'
 import fixture from '../test/fixtures/85b-nz-f3k-ndc.json'
 import f3jFixture from '../test/fixtures/50-f3j.json'
 import f5jFixture from '../test/fixtures/85c-nz-f5j-ndc.json'
@@ -11,6 +12,8 @@ import {
   placeholderEmail,
   runCalculate,
   sameMeasurement,
+  type CalcPrior,
+  type CalcReport,
 } from './calculate'
 import { FakeSoarscore } from './fake-soarscore'
 import {
@@ -24,9 +27,18 @@ import {
 const f3k = fixture as unknown as ClassDefinition
 const f3j = f3jFixture as unknown as ClassDefinition
 
+/** The contest names the orchestrator fabricates from these sheets' headers —
+ * pinned as literals so the `<ISO date> <location> <class label>` format and
+ * the class-label fallback (FAI designation, else the definition's name) are
+ * asserted, not assumed. */
+const F3K_CONTEST = '2026-09-19 Matamata F3K'
+const RADIAN_CONTEST = '2026-09-19 Matamata ALES Radian (2 m all-foam electric glider)'
+const X5J_CONTEST = '2026-09-22 Matamata X5J Electric'
+const F3J_CONTEST = '2026-09-20 Matamata F3J'
+const F5J_CONTEST = '2026-09-21 Matamata F5J'
+
 function baseSheet(): SheetState {
   let s = sheetReducer(initialSheet(), { type: 'classChosen', contentHash: 'hash', definition: f3k })
-  s = sheetReducer(s, { type: 'setField', field: 'contestName', value: 'Waikato NDC' })
   s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
   s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-19' })
   s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
@@ -63,10 +75,10 @@ describe('calculate — fresh run', () => {
     expect(report.competitionId).toBeTruthy()
     expect(report.counts.captured).toBe(2)
     expect(report.counts.amended).toBe(0)
-    expect(fake.competitionByName('Waikato NDC', '2026-09-19')).toBeDefined()
+    expect(fake.competitionByName(F3K_CONTEST, '2026-09-19')).toBeDefined()
     expect(fake.personByName('Ana Silva')).toBeDefined()
     // Round 1 complete (both required flightTimes captured), round 2 untouched.
-    const comp = fake.competitionByName('Waikato NDC', '2026-09-19')!
+    const comp = fake.competitionByName(F3K_CONTEST, '2026-09-19')!
     expect(comp.rounds[0].state).toBe('Complete')
     expect(comp.rounds[1].state).toBe('Drawn')
     // F3K NDC PerRound params bind only for task-B rounds — none here.
@@ -134,11 +146,11 @@ describe('calculate — fresh run', () => {
   it('re-uses an existing competition with the same name and date', async () => {    const fake = new FakeSoarscore()
     const api = fake.api(f3k)
     await runCalculate(api, baseSheet(), noProgress)
-    const first = fake.competitionByName('Waikato NDC', '2026-09-19')!
+    const first = fake.competitionByName(F3K_CONTEST, '2026-09-19')!
 
     await runCalculate(api, baseSheet(), noProgress)
     expect(fake.competitions).toHaveLength(1)
-    expect(fake.competitionByName('Waikato NDC', '2026-09-19')!.id).toBe(first.id)
+    expect(fake.competitionByName(F3K_CONTEST, '2026-09-19')!.id).toBe(first.id)
   })
 
   it('registers unknown pilots with a deterministic placeholder email', async () => {
@@ -166,7 +178,7 @@ describe('calculate — corrections', () => {
 
     expect(report.counts.amended).toBe(1)
     expect(report.counts.captured).toBe(0)
-    const comp = fake.competitionByName('Waikato NDC', '2026-09-19')!
+    const comp = fake.competitionByName(F3K_CONTEST, '2026-09-19')!
     expect(comp.entries[0].amendments).toHaveLength(1)
     expect(comp.entries[0].amendments[0].newValue.number).toBe(61)
     expect(report.steps.some((s) => s.step === 'done' && s.status === 'ok')).toBe(true)
@@ -177,7 +189,7 @@ describe('calculate — corrections', () => {
     const api = fake.api(f3k)
     const sheet = baseSheet()
     await runCalculate(api, sheet, noProgress)
-    const comp = fake.competitionByName('Waikato NDC', '2026-09-19')!
+    const comp = fake.competitionByName(F3K_CONTEST, '2026-09-19')!
     expect(comp.rounds[0].state).toBe('Complete')
 
     const edited = sheetReducer(sheet, {
@@ -216,7 +228,7 @@ describe('calculate — corrections', () => {
     // cell is counted and warned — while the rest of the sheet still works.
     expect(report.ok).toBe(true)
     expect(fake.personByName('Cara Ng')).toBeDefined()
-    expect(fake.competitorsOf(fake.competitionByName('Waikato NDC', '2026-09-19')!.id)).toHaveLength(2)
+    expect(fake.competitorsOf(fake.competitionByName(F3K_CONTEST, '2026-09-19')!.id)).toHaveLength(2)
     expect(report.counts.skippedNotRegistered).toBe(1)
     expect(report.steps.some((s) => s.status === 'warn' && s.label.includes('Cara Ng'))).toBe(true)
     expect(report.steps.some((s) => s.label.includes('field froze'))).toBe(true)
@@ -231,6 +243,167 @@ describe('calculate — corrections', () => {
     expect(rerun.ok).toBe(true)
     expect(rerun.counts.amended).toBe(1)
     expect(rerun.counts.skippedNotRegistered).toBe(1)
+  })
+})
+
+describe('calculate — renaming a pilot after Calculate', () => {
+  const priorOf = (report: CalcReport): CalcPrior => ({
+    competitionId: report.competitionId ?? '',
+    rowCompetitors: report.rowCompetitors,
+    names: report.names,
+  })
+
+  it('a renamed row keeps its competitor: the person is renamed, nothing re-registers, results show the new name', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    const sheet = baseSheet()
+    const first = await runCalculate(api, sheet, noProgress)
+    const comp = fake.competitionByName(F3K_CONTEST, '2026-09-19')!
+    const competitorId = comp.competitors[0].id
+    const personId = comp.competitors[0].personId
+
+    const renamed = sheetReducer(sheet, {
+      type: 'setPilot',
+      index: 0,
+      patch: { name: 'Ana Silva-Ng' },
+    })
+    const report = await runCalculate(api, renamed, noProgress, priorOf(first))
+
+    expect(report.ok).toBe(true)
+    expect(fake.renameCalls).toBe(1)
+    expect(fake.personByName('Ana Silva-Ng')).toBeDefined()
+    expect(fake.personByName('Ana Silva')).toBeUndefined()
+    // the same competitor — no re-registration behind a new person
+    expect(comp.competitors).toHaveLength(2)
+    expect(comp.competitors[0].id).toBe(competitorId)
+    expect(comp.competitors[0].personId).toBe(personId)
+    // the row's cells still diff against that competitor — plain no-op
+    expect(report.counts).toEqual({
+      captured: 0,
+      amended: 0,
+      unchanged: 2,
+      failed: 0,
+      skippedNotDrawn: 0,
+      skippedNotRegistered: 0,
+      penalties: 0,
+    })
+    // results display: the competitor shows the sheet's new name
+    expect(report.rowCompetitors['1']).toBe(competitorId)
+    expect(report.names[competitorId]).toBe('Ana Silva-Ng')
+  })
+
+  it('a rename without prior identity (the page reloaded) is recovered by elimination', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    await runCalculate(api, baseSheet(), noProgress)
+    const comp = fake.competitionByName(F3K_CONTEST, '2026-09-19')!
+    const competitorId = comp.competitors[0].id
+    const personId = comp.competitors[0].personId
+
+    const renamed = sheetReducer(baseSheet(), {
+      type: 'setPilot',
+      index: 0,
+      patch: { name: 'Ana Silva-Ng' },
+    })
+    // no prior passed — the session mapping is gone; the single unmatched row
+    // and the single unmatched competitor are the same pilot
+    const report = await runCalculate(api, renamed, noProgress)
+
+    expect(report.ok).toBe(true)
+    expect(fake.renameCalls).toBe(1)
+    expect(fake.personByName('Ana Silva-Ng')).toBeDefined()
+    expect(comp.competitors[0].id).toBe(competitorId)
+    expect(comp.competitors[0].personId).toBe(personId)
+    expect(report.names[competitorId]).toBe('Ana Silva-Ng')
+    expect(report.counts.unchanged).toBe(2)
+  })
+
+  it('an unchanged name never re-issues a rename — the rescore stays a no-op', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    const sheet = baseSheet()
+    const first = await runCalculate(api, sheet, noProgress)
+    const before = JSON.stringify(fake.competitions)
+
+    const report = await runCalculate(api, sheet, noProgress, priorOf(first))
+
+    expect(report.ok).toBe(true)
+    expect(fake.renameCalls).toBe(0)
+    expect(fake.people).toHaveLength(2)
+    expect(JSON.stringify(fake.competitions)).toBe(before)
+  })
+
+  it('two rows renamed in one edit burst keep their own identities', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    const sheet = baseSheet()
+    const first = await runCalculate(api, sheet, noProgress)
+    const comp = fake.competitionByName(F3K_CONTEST, '2026-09-19')!
+    const [ca, cb] = comp.competitors.map((k) => k.id)
+
+    let renamed = sheetReducer(sheet, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva-Ng' } })
+    renamed = sheetReducer(renamed, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu-Roa' } })
+    const report = await runCalculate(api, renamed, noProgress, priorOf(first))
+
+    expect(report.ok).toBe(true)
+    expect(fake.renameCalls).toBe(2)
+    expect(fake.personByName('Ana Silva-Ng')).toBeDefined()
+    expect(fake.personByName('Ben Tu-Roa')).toBeDefined()
+    // each row still owns the competitor it flew with
+    expect(report.rowCompetitors['1']).toBe(ca)
+    expect(report.rowCompetitors['2']).toBe(cb)
+    expect(report.names[ca]).toBe('Ana Silva-Ng')
+    expect(report.names[cb]).toBe('Ben Tu-Roa')
+  })
+
+  it('a refused rename warns, skips the row, and the flown field keeps working', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    const sheet = baseSheet()
+    const first = await runCalculate(api, sheet, noProgress)
+    api.renamePerson = async () => {
+      throw new ApiError(500, 'rename.refused', 'the rename was refused', [])
+    }
+
+    const renamed = sheetReducer(sheet, {
+      type: 'setPilot',
+      index: 0,
+      patch: { name: 'Ana Silva-Ng' },
+    })
+    const report = await runCalculate(api, renamed, noProgress, priorOf(first))
+
+    expect(report.ok).toBe(true)
+    const warn = report.steps.find((s) => s.step === 'pilots' && s.status === 'warn')
+    expect(warn?.label).toContain('Rename refused')
+    expect(warn?.label).toContain('Ana Silva-Ng')
+    // the wire keeps the old name; the row's cells are skipped, not lost
+    expect(fake.personByName('Ana Silva')).toBeDefined()
+    expect(report.counts.skippedNotRegistered).toBe(1)
+    // Ben (row 2) still diffs and the results still name him
+    expect(report.counts.unchanged).toBe(1)
+    const comp = fake.competitionByName(F3K_CONTEST, '2026-09-19')!
+    expect(report.names[comp.competitors[1].id]).toBe('Ben Tu')
+  })
+
+  it('blanking a name mid-retype commits nothing and keeps the last sheet name for display', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    const sheet = baseSheet()
+    const first = await runCalculate(api, sheet, noProgress)
+    const comp = fake.competitionByName(F3K_CONTEST, '2026-09-19')!
+    const competitorId = comp.competitors[0].id
+
+    const blanked = sheetReducer(sheet, { type: 'setPilot', index: 0, patch: { name: '  ' } })
+    const report = await runCalculate(api, blanked, noProgress, priorOf(first))
+
+    expect(report.ok).toBe(true)
+    expect(fake.renameCalls).toBe(0)
+    expect(fake.people).toHaveLength(2)
+    // the row dropped out of the field — no competitor mapping this run
+    expect(report.rowCompetitors['1']).toBeUndefined()
+    // …but the results still speak the competitor's last sheet name
+    expect(report.names[competitorId]).toBe('Ana Silva')
+    expect(report.counts.unchanged).toBe(1)
   })
 })
 
@@ -283,7 +456,7 @@ describe('calculate — refusals', () => {
     expect(draw?.detail).toMatch(/not drawn/i)
     expect(report.counts.failed).toBe(0)
     expect(report.counts.unchanged).toBe(2)
-    expect(fake.competitionByName('Waikato NDC', '2026-09-19')!.rounds).toHaveLength(2)
+    expect(fake.competitionByName(F3K_CONTEST, '2026-09-19')!.rounds).toHaveLength(2)
   })
 
   it('a smaller round count is absorbed — the extra drawn round is skipped, never annulled', async () => {
@@ -298,7 +471,7 @@ describe('calculate — refusals', () => {
     expect(report.ok).toBe(true)
     expect(report.steps.some((s) => s.step === 'draw' && s.status === 'warn')).toBe(true)
     expect(report.steps.some((s) => s.status === 'warn' && s.label.includes('Round 2'))).toBe(true)
-    expect(fake.competitionByName('Waikato NDC', '2026-09-19')!.rounds[1].state).toBe('Drawn')
+    expect(fake.competitionByName(F3K_CONTEST, '2026-09-19')!.rounds[1].state).toBe('Drawn')
     expect(report.counts.failed).toBe(0)
   })
 
@@ -306,7 +479,6 @@ describe('calculate — refusals', () => {
     const fake = new FakeSoarscore()
     const api = fake.api(f3k)
     let s = sheetReducer(initialSheet(), { type: 'classChosen', contentHash: 'hash', definition: f3k })
-    s = sheetReducer(s, { type: 'setField', field: 'contestName', value: 'Waikato NDC' })
     s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
     s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-19' })
     s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
@@ -341,7 +513,6 @@ describe('calculate — BeforeFlying parameters (NDC Radian)', () => {
 
   function radianSheet(): SheetState {
     let s = sheetReducer(initialSheet(), { type: 'classChosen', contentHash: 'hash', definition: radian })
-    s = sheetReducer(s, { type: 'setField', field: 'contestName', value: 'NDC Radian' })
     s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
     s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-19' })
     s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
@@ -365,7 +536,7 @@ describe('calculate — BeforeFlying parameters (NDC Radian)', () => {
     const report = await runCalculate(api, sheet, noProgress)
 
     expect(report.ok, report.steps.map((s) => `${s.status} ${s.label} ${s.detail ?? ''}`).join('\n')).toBe(true)
-    const comp = fake.competitionByName('NDC Radian', '2026-09-19')!
+    const comp = fake.competitionByName(RADIAN_CONTEST, '2026-09-19')!
     // roundDuration — the task's working time — landed as a binding.
     expect(comp.bindings.some((b) => b.parameterName === 'roundDuration')).toBe(true)
     expect(comp.rounds[0].state).toBe('Complete')
@@ -380,7 +551,7 @@ describe('calculate — BeforeFlying parameters (NDC Radian)', () => {
     const report = await runCalculate(api, sheet, noProgress)
 
     expect(report.ok).toBe(true)
-    const comp = fake.competitionByName('NDC Radian', '2026-09-19')!
+    const comp = fake.competitionByName(RADIAN_CONTEST, '2026-09-19')!
     const bind = comp.bindings.find((b) => b.parameterName === 'roundDuration')
     expect(bind?.value).toMatchObject({ kind: 'Number', number: 600 })
   })
@@ -397,10 +568,233 @@ describe('calculate — BeforeFlying parameters (NDC Radian)', () => {
     const report = await runCalculate(api, sheet, noProgress)
 
     expect(report.ok, report.steps.map((s) => `${s.status} ${s.label} ${s.detail ?? ''}`).join('\n')).toBe(true)
-    const flight = fake.competitionByName('NDC Radian', '2026-09-19')!.entries[0].flights.get(1)!
+    const flight = fake.competitionByName(RADIAN_CONTEST, '2026-09-19')!.entries[0].flights.get(1)!
     expect(flight.get('landingDistance')).toEqual({ kind: 'Number', number: 0 })
   })
 })
+
+describe('calculate — deselected compliance (the More list)', () => {
+  it('a select-then-deselect before any Calculate captures nothing', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    // The More checkbox writes the exception ('n'); unticking clears it —
+    // the sheet text ends blank before the first Calculate.
+    const clicked = sheetReducer(baseSheet(), {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 1, 'launchedInWorkingTime'),
+      text: 'n',
+    })
+    const deselected = sheetReducer(clicked, {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 1, 'launchedInWorkingTime'),
+      text: '',
+    })
+
+    const report = await runCalculate(api, deselected, noProgress)
+
+    expect(report.ok).toBe(true)
+    expect(report.counts.captured).toBe(2) // the two flight times only
+    const entry = fake.competitionByName(F3K_CONTEST, '2026-09-19')!.entries[0]
+    expect(entry.flights.get(1)!.has('launchedInWorkingTime')).toBe(false)
+    expect(entry.flights.get(1)!.get('flightTime')).toMatchObject({ kind: 'Number', number: 62 })
+  })
+
+  it('unticking after Calculate amends the captured flag back to the assumed value', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    const checked = sheetReducer(baseSheet(), {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 1, 'launchedInWorkingTime'),
+      text: 'n',
+    })
+    await runCalculate(api, checked, noProgress)
+    const comp = fake.competitionByName(F3K_CONTEST, '2026-09-19')!
+    expect(comp.entries[0].flights.get(1)!.get('launchedInWorkingTime')).toMatchObject({
+      kind: 'Flag',
+      flag: false,
+    })
+    expect(comp.rounds[0].state).toBe('Complete')
+
+    const deselected = sheetReducer(checked, {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 1, 'launchedInWorkingTime'),
+      text: '',
+    })
+    const report = await runCalculate(api, deselected, noProgress)
+
+    expect(report.ok).toBe(true)
+    expect(report.counts.amended).toBe(1)
+    expect(comp.entries[0].flights.get(1)!.get('launchedInWorkingTime')).toMatchObject({
+      kind: 'Flag',
+      flag: true,
+    })
+    expect(comp.entries[0].amendments).toEqual([
+      expect.objectContaining({
+        metric: 'launchedInWorkingTime',
+        newValue: { kind: 'Flag', flag: true },
+      }),
+    ])
+    // the completed round was reopened for the correction, then re-completed
+    expect(comp.rounds[0].state).toBe('Complete')
+  })
+
+  it('a rerun after the amend is a no-op — blank agrees with the stored assumption', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    const checked = sheetReducer(baseSheet(), {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 1, 'launchedInWorkingTime'),
+      text: 'n',
+    })
+    await runCalculate(api, checked, noProgress)
+    const deselected = sheetReducer(checked, {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 1, 'launchedInWorkingTime'),
+      text: '',
+    })
+    await runCalculate(api, deselected, noProgress)
+    const comp = fake.competitionByName(F3K_CONTEST, '2026-09-19')!
+    expect(comp.entries[0].amendments).toHaveLength(1)
+
+    const report = await runCalculate(api, deselected, noProgress)
+
+    expect(report.counts).toEqual({
+      captured: 0,
+      amended: 0,
+      unchanged: 3, // two flight times + the reconciled flag agreeing with its assumption
+      failed: 0,
+      skippedNotDrawn: 0,
+      skippedNotRegistered: 0,
+      penalties: 0,
+    })
+    expect(comp.entries[0].amendments).toHaveLength(1)
+  })
+
+  it('unticking restores every flight the tick covered (two fixed flight rows)', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    // Task B is lastN 2: both flight rows are always visible, and the More
+    // checkbox writes the exception onto both.
+    let s = sheetReducer(baseSheet(), { type: 'setTaskPick', roundIndex: 0, taskRef: 'B' })
+    s = sheetReducer(s, { type: 'setCell', key: sheetCellKey(1, 1, 1, 'launchedInWorkingTime'), text: 'n' })
+    s = sheetReducer(s, { type: 'setCell', key: sheetCellKey(1, 1, 2, 'launchedInWorkingTime'), text: 'n' })
+    const first = await runCalculate(api, s, noProgress)
+    expect(first.counts.captured).toBe(4) // two flight times + two flags
+    const comp = fake.competitionByName(F3K_CONTEST, '2026-09-19')!
+    expect(comp.entries[0].flights.get(1)!.get('launchedInWorkingTime')).toMatchObject({ kind: 'Flag', flag: false })
+    expect(comp.entries[0].flights.get(2)!.get('launchedInWorkingTime')).toMatchObject({ kind: 'Flag', flag: false })
+
+    let d = sheetReducer(s, { type: 'setCell', key: sheetCellKey(1, 1, 1, 'launchedInWorkingTime'), text: '' })
+    d = sheetReducer(d, { type: 'setCell', key: sheetCellKey(1, 1, 2, 'launchedInWorkingTime'), text: '' })
+    const report = await runCalculate(api, d, noProgress)
+
+    expect(report.ok).toBe(true)
+    expect(report.counts.amended).toBe(2)
+    expect(comp.entries[0].flights.get(1)!.get('launchedInWorkingTime')).toMatchObject({ kind: 'Flag', flag: true })
+    expect(comp.entries[0].flights.get(2)!.get('launchedInWorkingTime')).toMatchObject({ kind: 'Flag', flag: true })
+  })
+
+  it('a cleared assumed value amends back to its assumption too', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(x5jLike)
+    const filled = sheetReducer(x5jSheet(), {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 1, 'motorRestartRunTime'),
+      text: '3',
+    })
+    await runCalculate(api, filled, noProgress)
+    const comp = fake.competitionByName(X5J_CONTEST, '2026-09-22')!
+    expect(comp.entries[0].flights.get(1)!.get('motorRestartRunTime')).toMatchObject({
+      kind: 'Number',
+      number: 3,
+    })
+
+    const cleared = sheetReducer(filled, {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 1, 'motorRestartRunTime'),
+      text: '',
+    })
+    const report = await runCalculate(api, cleared, noProgress)
+
+    expect(report.ok).toBe(true)
+    expect(report.counts.amended).toBe(1)
+    expect(comp.entries[0].flights.get(1)!.get('motorRestartRunTime')).toMatchObject({
+      kind: 'Number',
+      number: 0,
+    })
+  })
+
+  it('blank on a required (non-assumed) metric is not an undo', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    await runCalculate(api, baseSheet(), noProgress)
+
+    const cleared = sheetReducer(baseSheet(), {
+      type: 'setCell',
+      key: sheetCellKey(1, 1, 1, 'flightTime'),
+      text: '',
+    })
+    const report = await runCalculate(api, cleared, noProgress)
+
+    // No assumption to amend to, and the wire has no un-capture: the sheet
+    // cannot express "no flight time" — the recorded value stays.
+    expect(report.ok).toBe(true)
+    expect(report.counts.amended).toBe(0)
+    const entry = fake.competitionByName(F3K_CONTEST, '2026-09-19')!.entries[0]
+    expect(entry.flights.get(1)!.get('flightTime')).toMatchObject({ kind: 'Number', number: 62 })
+  })
+})
+
+// --- an X5J-shaped definition for the assumed-value (Number) branch ---
+
+const x5jLike = {
+  name: 'X5J Electric',
+  version: '1',
+  parameters: [],
+  penalties: [],
+  phases: [
+    {
+      type: 'Preliminary',
+      ordinal: 0,
+      rounds: { kind: 'FixedSequence', tasksPerRound: 1, requireDistinctTaskPerRound: false, maxRounds: 1 },
+      validity: {},
+      tasks: [
+        {
+          code: 'D',
+          name: 'Glide Duration',
+          metrics: [
+            { name: 'glideTime', kind: 'Number', unit: 's', declaredBeforeLaunch: false },
+            {
+              name: 'motorRestartRunTime',
+              kind: 'Number',
+              unit: 's',
+              declaredBeforeLaunch: false,
+              whenNotRecorded: { kind: 'Number', number: 0 },
+            },
+          ],
+          flights: { $kind: 'last' },
+          timing: { kind: 'Fixed', workingTime: 600, maxLaunches: 1 },
+          normalise: {},
+        },
+      ],
+    },
+  ],
+} as unknown as ClassDefinition
+
+function x5jSheet(): SheetState {
+  let s = sheetReducer(initialSheet(), {
+    type: 'classChosen',
+    contentHash: 'hash-x5j',
+    definition: x5jLike,
+  })
+  s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
+  s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-22' })
+  s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
+  s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
+  s = sheetReducer(s, { type: 'setPilotCount', count: 1 })
+  s = sheetReducer(s, { type: 'setCell', key: sheetCellKey(1, 1, 1, 'glideTime'), text: '60' })
+  return s
+}
 
 describe('sameMeasurement', () => {
   const truncate1 = {
@@ -450,7 +844,6 @@ function f3jSheet(): SheetState {
     contentHash: 'hash-f3j',
     definition: f3j,
   })
-  s = sheetReducer(s, { type: 'setField', field: 'contestName', value: 'Thermal NDC' })
   s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
   s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-20' })
   s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
@@ -488,7 +881,7 @@ describe('calculate — stopwatch split (F3J task D, 600 s working time)', () =>
 
     expect(report.ok).toBe(true)
     expect(report.counts.captured).toBe(2)
-    const entry = fake.competitionByName('Thermal NDC', '2026-09-20')!.entries[0]
+    const entry = fake.competitionByName(F3J_CONTEST, '2026-09-20')!.entries[0]
     expect(entry.flights.get(1)!.get('flightTime')).toMatchObject({ kind: 'Number', number: 590 })
     expect(entry.flights.get(1)!.has('overflySeconds')).toBe(false)
   })
@@ -501,7 +894,7 @@ describe('calculate — stopwatch split (F3J task D, 600 s working time)', () =>
 
     expect(report.ok).toBe(true)
     expect(report.counts.captured).toBe(3)
-    const flight = fake.competitionByName('Thermal NDC', '2026-09-20')!.entries[0].flights.get(1)!
+    const flight = fake.competitionByName(F3J_CONTEST, '2026-09-20')!.entries[0].flights.get(1)!
     expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 600 })
     expect(flight.get('overflySeconds')).toMatchObject({ kind: 'Number', number: 4 })
   })
@@ -512,7 +905,7 @@ describe('calculate — stopwatch split (F3J task D, 600 s working time)', () =>
     const sheet = f3jReading(f3jSheet(), 1, '604.4', '9.9')
     await runCalculate(api, sheet, noProgress)
 
-    const flight = fake.competitionByName('Thermal NDC', '2026-09-20')!.entries[0].flights.get(1)!
+    const flight = fake.competitionByName(F3J_CONTEST, '2026-09-20')!.entries[0].flights.get(1)!
     expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 600 })
     expect(flight.get('overflySeconds')).toMatchObject({ kind: 'Number', number: 4 })
   })
@@ -525,7 +918,7 @@ describe('calculate — stopwatch split (F3J task D, 600 s working time)', () =>
     const report = await runCalculate(api, sheet, noProgress)
 
     expect(report.ok).toBe(true)
-    const flight = fake.competitionByName('Thermal NDC', '2026-09-20')!.entries[0].flights.get(1)!
+    const flight = fake.competitionByName(F3J_CONTEST, '2026-09-20')!.entries[0].flights.get(1)!
     expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 590 })
     expect(flight.has('overflySeconds')).toBe(false)
   })
@@ -556,7 +949,7 @@ describe('calculate — stopwatch split (F3J task D, 600 s working time)', () =>
     const api = fake.api(f3j)
     const base = f3jSheet()
     await runCalculate(api, f3jReading(f3jReading(base, 1, '10:04', '9.9'), 2, '9:55', '11.1'), noProgress)
-    const comp = fake.competitionByName('Thermal NDC', '2026-09-20')!
+    const comp = fake.competitionByName(F3J_CONTEST, '2026-09-20')!
     expect(comp.rounds[0].state).toBe('Complete')
 
     const edited = f3jReading(f3jReading(base, 1, '9:50', '9.9'), 2, '9:55', '11.1')
@@ -580,7 +973,7 @@ describe('calculate — stopwatch split (F3J task D, 600 s working time)', () =>
     const fake = new FakeSoarscore()
     const api = fake.api(f3j)
     await runCalculate(api, f3jReading(f3jSheet(), 1, '9:50', '9.9'), noProgress)
-    const comp = fake.competitionByName('Thermal NDC', '2026-09-20')!
+    const comp = fake.competitionByName(F3J_CONTEST, '2026-09-20')!
 
     const report = await runCalculate(api, f3jReading(f3jSheet(), 1, '605.7', '9.9'), noProgress)
     expect(report.counts.amended).toBe(1) // flightTime 590 → 600
@@ -618,7 +1011,7 @@ describe('calculate — stopwatch split (F3J task D, 600 s working time)', () =>
     const report = await runCalculate(api, sheet, noProgress)
 
     expect(report.ok).toBe(true)
-    const comp = fake.competitionByName('Thermal NDC', '2026-09-20')!
+    const comp = fake.competitionByName(F3J_CONTEST, '2026-09-20')!
     expect(comp.rounds[0].state).toBe('Complete')
     expect(comp.entries[0].flights.get(1)!.get('flightTime')).toMatchObject({ number: 590 })
     expect(comp.entries[1].flights.get(1)!.get('flightTime')).toMatchObject({ number: 600 })
@@ -638,7 +1031,6 @@ function f5jSheet(): SheetState {
     contentHash: 'hash-f5j',
     definition: f5j,
   })
-  s = sheetReducer(s, { type: 'setField', field: 'contestName', value: 'Electric NDC' })
   s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
   s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-21' })
   s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
@@ -660,7 +1052,7 @@ describe('calculate — stopwatch at the working-time horn (flyaway ambiguity)',
     expect(warn?.label).toMatch(/flight 1 — stopwatch 10:00 reaches the 10:00 working time with no overfly/)
     expect(warn?.detail).toMatch(/never landed/)
     expect(warn?.detail).toMatch(/at most 9:59\.9/) // the flight metric's 0.1 s step
-    const flight = fake.competitionByName('Thermal NDC', '2026-09-20')!.entries[0].flights.get(1)!
+    const flight = fake.competitionByName(F3J_CONTEST, '2026-09-20')!.entries[0].flights.get(1)!
     expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 600 })
     expect(flight.has('overflySeconds')).toBe(false)
   })
@@ -710,8 +1102,101 @@ describe('calculate — stopwatch at the working-time horn (flyaway ambiguity)',
     const warn = report.steps.find((s) => s.status === 'warn' && s.label.includes('no overfly'))
     expect(warn?.label).toMatch(/stopwatch 10:00 reaches the 10:00 working time/)
     expect(warn?.detail).toMatch(/at most 9:59;/)
-    const flight = fake.competitionByName('Electric NDC', '2026-09-21')!.entries[0].flights.get(1)!
+    const flight = fake.competitionByName(F5J_CONTEST, '2026-09-21')!.entries[0].flights.get(1)!
     expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 600 })
     expect(flight.has('overflySeconds')).toBe(false)
+  })
+})
+
+// --- the fabricated contest identity (bug #4: no contest-name field) ---
+
+/** A duplicate the way only the wire could hold one: two competitions that
+ * share the sheet's fabricated identity (a second same-day event at the
+ * same venue and class, created outside this sheet). */
+function seedDuplicate(fake: FakeSoarscore, id: string): void {
+  fake.competitions.push({
+    id,
+    name: F3K_CONTEST,
+    location: 'Matamata',
+    date: '2026-09-19',
+    classContentHash: 'hash',
+    bindings: [],
+    drawStatus: 'none',
+    rounds: [],
+    groups: new Map(),
+    competitors: [],
+    entries: [],
+  })
+}
+
+describe('calculate — the fabricated contest name (no contest-name field)', () => {
+  it('creates under the fabricated name `<ISO date> <location> <class label>`', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+
+    const report = await runCalculate(api, baseSheet(), noProgress)
+
+    expect(report.ok).toBe(true)
+    expect(fake.competitionByName('2026-09-19 Matamata F3K', '2026-09-19')).toBeDefined()
+    expect(fake.competitions[0].name).toBe(F3K_CONTEST)
+  })
+
+  it('a re-calc of the same header finds the same competition — the fabricated name is the identity', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    const sheet = baseSheet()
+    const first = await runCalculate(api, sheet, noProgress)
+
+    const second = await runCalculate(api, sheet, noProgress)
+
+    expect(second.ok).toBe(true)
+    expect(second.competitionId).toBe(first.competitionId)
+    expect(fake.competitions).toHaveLength(1)
+  })
+
+  it('a duplicate in Soarscore (two contests with the fabricated identity) stops the run — the client never picks one', async () => {
+    const fake = new FakeSoarscore()
+    seedDuplicate(fake, 'dup-1')
+    seedDuplicate(fake, 'dup-2')
+    const api = fake.api(f3k)
+
+    const report = await runCalculate(api, baseSheet(), noProgress)
+
+    expect(report.ok).toBe(false)
+    expect(report.competitionId).toBeNull()
+    const failed = report.steps.find((s) => s.step === 'competition' && s.status === 'error')
+    expect(failed?.label).toBe(
+      '2 contests are already named "2026-09-19 Matamata F3K" starting 2026-09-19',
+    )
+    expect(failed?.detail).toContain('dup-1')
+    expect(failed?.detail).toContain('dup-2')
+    // Nothing else ran: no create, no registration, no draw.
+    expect(fake.competitions).toHaveLength(2)
+    expect(fake.people).toHaveLength(0)
+  })
+
+  it('a wire refusal on the fabricated name surfaces verbatim (RFC 9457 title code + detail)', async () => {
+    const fake = new FakeSoarscore()
+    const api = {
+      ...fake.api(f3k),
+      createCompetition: async () => {
+        throw new ApiError(
+          409,
+          'competition.name.unique',
+          'A competition with that name already exists.',
+          [],
+        )
+      },
+    }
+
+    const report = await runCalculate(api, baseSheet(), noProgress)
+
+    expect(report.ok).toBe(false)
+    expect(report.competitionId).toBeNull()
+    const failed = report.steps.find((s) => s.step === 'competition' && s.status === 'error')
+    expect(failed?.label).toBe('Find-or-create competition failed')
+    expect(failed?.detail).toBe(
+      'competition.name.unique: A competition with that name already exists.',
+    )
   })
 })

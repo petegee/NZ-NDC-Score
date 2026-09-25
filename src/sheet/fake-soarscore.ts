@@ -80,6 +80,9 @@ const GROUP_SIZE = 2
 export class FakeSoarscore {
   people: FakePerson[] = []
   competitions: FakeCompetition[] = []
+  /** Rename-person commands issued — lets tests assert a rescore is a
+   * no-op (no rename spam) or that exactly the renames landed. */
+  renameCalls = 0
   private ids = 0
 
   private id(): string {
@@ -236,6 +239,19 @@ export class FakeSoarscore {
         const person: FakePerson = { id: this.id(), name: body.name, email: body.contact.email }
         this.people.push(person)
         return { value: person.id, warnings: [] }
+      },
+      // Mirrors RenamePersonHandler + Person.Rename: the person stream
+      // appends, the projection reads the current name — blank is the only
+      // domain refusal (Person.cs ValidateName).
+      renamePerson: async (personId, name) => {
+        const p = this.people.find((x) => x.id === personId)
+        if (!p) throw new ApiError(404, 'person.notFound', 'no such person', [])
+        if (!name.trim()) {
+          throw new ApiError(400, 'person.name.blank', 'Name must not be blank.', [])
+        }
+        this.renameCalls += 1
+        p.name = name
+        return { value: p.id, warnings: [] }
       },
       getPerson: async (id) => {
         const p = this.people.find((x) => x.id === id)

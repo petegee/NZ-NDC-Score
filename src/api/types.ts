@@ -22,6 +22,7 @@ export type DeclaredInstrument = components['schemas']['DeclaredInstrument']
 
 export type CreateCompetition = components['schemas']['CreateCompetition']
 export type RegisterPerson = components['schemas']['RegisterPerson']
+export type RenamePerson = components['schemas']['RenamePerson']
 export type ContactDetails = components['schemas']['ContactDetails']
 export type ClubAffiliation = components['schemas']['ClubAffiliation']
 export type RegisterCompetitor = components['schemas']['RegisterCompetitor']

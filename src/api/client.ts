@@ -68,6 +68,7 @@ export interface DeclareInstrumentsInput {
 
 export interface Api {
   registerPerson(body: RegisterPerson): Promise<ApiResult<string>>
+  renamePerson(personId: string, name: string): Promise<ApiResult<string>>
   findPeople(query: { email?: string; name?: string }): Promise<ApiResult<PersonSummary[]>>
   getPerson(id: string): Promise<ApiResult<Person>>
 
@@ -169,6 +170,8 @@ export function createApi(base: string, fetchImpl: FetchLike = fetch): Api {
 
   return {
     registerPerson: async (body) => unwrapId(await call('POST', '/register-person', { body })),
+    renamePerson: async (personId, name) =>
+      unwrapId(await call('POST', '/rename-person', { body: { id: id(personId), name } })),
     findPeople: async (query) =>
       call('GET', '/people', { query: { email: query.email, name: query.name } }),
     getPerson: async (personId) => call('GET', '/person', { query: { id: personId } }),
