@@ -446,20 +446,20 @@ table.grid thead th {
   text-align: right;
 }
 
-/* Sheet cells: borderless boxes on the banded sheet; a faint border on
-   hover marks the editable cell. */
+/* Sheet cells: grey-bordered boxes so every editable cell reads against
+   both the white rows and the banded/tinted ones; focus goes green. */
 input.cell {
   width: 100%;
   max-width: 4.25rem;
   padding: 0.15rem 0.25rem;
   margin: 0;
   text-align: right;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-strong);
   border-radius: 3px;
 }
 
 input.cell:hover:not(:focus):not(:disabled) {
-  border-color: var(--border-strong);
+  border-color: var(--text-muted);
 }
 
 input.cell:disabled {
@@ -470,13 +470,13 @@ input.cell:disabled {
 .flag-cell {
   min-width: 2.2rem;
   padding: 0.2rem 0.4rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 4px;
   background: var(--surface);
 }
 
 .flag-cell:hover:not(:disabled) {
-  border-color: var(--border-strong);
+  border-color: var(--text-muted);
 }
 
 .flag-blank {
