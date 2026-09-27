@@ -1258,6 +1258,7 @@ describe('SheetPage', () => {
       ['NZ Radian', null, true],
       ['ALES Radian', undefined, true],
       ['ales radian (glider)', undefined, true],
+      ['NZ Thermal 2 Metre (Class H)', undefined, true],
       ['ALES 200', undefined, false],
       ['F5J Electric', 'F5J', false],
       ['Thermal Duration', '', false],

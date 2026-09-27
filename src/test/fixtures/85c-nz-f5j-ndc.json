@@ -233,6 +233,7 @@
               }
             ]
           },
+          "floorAtZero": true,
           "score": [
             {
               "$kind": "rate",

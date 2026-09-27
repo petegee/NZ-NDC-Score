@@ -51,6 +51,13 @@ describe('isNdcClass', () => {
   it('matches on name or FAI designation, case-insensitive', () => {
     expect(isNdcClass(row('RC Electric Gliders (NDC format)', '1', 'x'))).toBe(true)
     expect(isNdcClass(row('RC Electric Gliders', '1', 'x', 'f5j-ndc'))).toBe(true)
+    expect(isNdcClass(row('NZ Thermal 2 Metre (Class H)', '1', 'x'))).toBe(true)
     expect(isNdcClass(row('F3F', '1', 'x'))).toBe(false)
+  })
+
+  it('does not match other thermal classes on the thermal-2-metre token', () => {
+    // 'thermal 2 metre' must not widen to thermal duration / thermal gliders
+    expect(isNdcClass(row('Thermal Duration', '1', 'x'))).toBe(false)
+    expect(isNdcClass(row('F3J — RC Thermal Gliders', '1', 'x', 'F3J'))).toBe(false)
   })
 })
