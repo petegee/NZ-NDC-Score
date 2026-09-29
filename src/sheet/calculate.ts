@@ -12,6 +12,7 @@ import { parseCellText } from '../grid/parse'
 import type { GridColumn } from '../grid/schema'
 import { formatClock, splitStopwatch } from '../grid/stopwatch'
 import { fabricateContestName } from './contestName'
+import { LANDING_METRIC, toDeclaredInstrument } from './tapes'
 import {
   chainCommands,
   captureReducer,
@@ -790,6 +791,24 @@ export async function runCalculate(
   // The per-round binds landed; the fold's rounds/tasks are unchanged, and
   // the capture step refetches only the event log it needs.
 
+  // --- 6b · declare the provisional tape (F3J default) ---
+  // The declaration-time composition gate is loud: a non-composing tape is
+  // refused by the engine here, never silently degraded. Verbatim surfacing.
+  const instrumentFor = (metric: string): string | undefined =>
+    metric === LANDING_METRIC ? sheet.tapeChoice : undefined
+  try {
+    await api.declareInstruments({
+      competitionRef: competitionId,
+      instruments: [toDeclaredInstrument(sheet.tapeChoice)],
+      by: cdName,
+    })
+    emit({ step: 'instruments', label: `Declared ${sheet.tapeChoice}`, status: 'ok' })
+  } catch (error) {
+    emit({ step: 'instruments', label: `Declaring ${sheet.tapeChoice} was refused`, status: 'error', detail: errorDetail(error) })
+    problems.push(errorDetail(error))
+    return report
+  }
+
   // --- 7 · capture: rebuild, diff, capture or amend, complete ---
   const grids = sheetRoundGrids(definition, sheet.rounds, sheet.taskPicks)
   emit({ step: 'capture', label: 'Capturing the sheet…', status: 'ok' })
@@ -930,6 +949,7 @@ export async function runCalculate(
                 captureState.entries,
                 nextCommandId,
                 amend,
+                instrumentFor(col.metric),
               )
               captureState.queue.push(...commands)
             }

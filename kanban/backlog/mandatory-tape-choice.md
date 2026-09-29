@@ -1,6 +1,11 @@
 # Story — Mandatory tape choice: every contest declares points-tape or tape-measure up front
 
-**Status:** Backlog · **Raised:** 2026-09-29 (owner direction via
+**Status:** Superseded 2026-09-29 by the provisional 2-tape MVP (owner direction):
+`src/sheet/tapes.ts` (verbatim `tape-nz-f3j-side.json` + `tape-measure.json`,
+F3J default; distances-only removed 2026-09-29 — tape-measure is Reading == UpTo
+identity, so functionally identical for NZ NDC) · **Wire follow-up:**
+`kanban/blocked/ss_tape-catalogue-on-the-wire.md` (still blocked, SoarScore-side)
+· **Raised:** 2026-09-29 (owner direction via
 `HANDOVER-landing-zero-flyaway-tape.md` §6) · **Supersedes:**
 `kanban/deferred-decisions.md` "Landing-tape instruments are out of MVP"
 (2026-09-17 — see §Supersession below)

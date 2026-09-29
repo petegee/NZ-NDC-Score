@@ -7,6 +7,7 @@ import type {
 } from '../api/types'
 import { asNumber } from '../api/types'
 import { parseCellText } from '../grid/parse'
+import { DEFAULT_TAPE, LANDING_METRIC, isValidTapeReading, tapeReadingError, type TapeChoice } from './tapes'
 import {
   defaultRounds,
   phaseSetupInfo,
@@ -31,6 +32,9 @@ export interface SheetState {
   date: string
   cdName: string
   rounds: number
+  /** Provisional tape choice — F3J pre-selected on fresh sheets (owner call).
+   * The wire catalogue (`ss_tape-catalogue-on-the-wire`) replaces this source. */
+  tapeChoice: TapeChoice
   /** Per-round task choice for catalogue rounds — index is round-1. */
   taskPicks: Record<number, string>
   /** Raw header-block text per parameter name (setup / before-flying / per-round). */
@@ -67,6 +71,7 @@ export function initialSheet(): SheetState {
     date: '',
     cdName: '',
     rounds: 1,
+    tapeChoice: DEFAULT_TAPE,
     taskPicks: {},
     params: {},
     pilots: emptyPilots(10),
@@ -85,6 +90,7 @@ export function emptyPilots(n: number): PilotRow[] {
 export type SheetAction =
   | { type: 'setField'; field: 'location' | 'date' | 'cdName'; value: string }
   | { type: 'setRounds'; rounds: number }
+  | { type: 'setTapeChoice'; choice: TapeChoice }
   | { type: 'setTaskPick'; roundIndex: number; taskRef: string }
   | { type: 'setParam'; name: string; text: string }
   | { type: 'setPilot'; index: number; patch: Partial<PilotRow> }
@@ -123,6 +129,8 @@ export function sheetReducer(state: SheetState, action: SheetAction): SheetState
       const rounds = Math.max(1, Math.floor(action.rounds) || 1)
       return { ...state, rounds, cells: pruneCellsBeyond(state.cells, rounds) }
     }
+    case 'setTapeChoice':
+      return { ...state, tapeChoice: action.choice }
     case 'setTaskPick':
       return { ...state, taskPicks: { ...state.taskPicks, [action.roundIndex]: action.taskRef } }
     case 'setParam':
@@ -178,6 +186,11 @@ export function loadSheet(): SheetState {
       // The contest name field is gone (bug #4): a draft saved before the
       // change must not resurrect the removed field.
       delete saved.contestName
+      // Drafts saved before the provisional tape choice, or with the removed
+      // distances-only option, fall back to the F3J default (owner call).
+      // Tape-measure is Reading == UpTo identity, so old distance entries on
+      // the cm grid revalidate as tape-measure readings.
+      if (saved.tapeChoice === undefined || saved.tapeChoice === null) saved.tapeChoice = DEFAULT_TAPE
       return { ...initialSheet(), ...saved }
     }
   } catch {
@@ -482,6 +495,16 @@ export function validateSheet(state: SheetState): SheetValidation {
     const parse = parseCellText(text, col.kind, col.unit)
     if (!parse.ok && parse.error !== 'blank') {
       cellErrors.push({ key, error: parse.error })
+      continue
+    }
+    // Provisional tape gate: landing readings must be exact members of the
+    // chosen tape's reading set (what the server enforces as
+    // `captureMeasurement.readingNotOnScale`) — readings only, never points.
+    if (parse.ok && parts.metric === LANDING_METRIC && col.kind === 'Number') {
+      const n = Number(parse.value.number)
+      if (Number.isFinite(n) && !isValidTapeReading(state.tapeChoice, n)) {
+        cellErrors.push({ key, error: tapeReadingError(state.tapeChoice, n) ?? 'not on the tape scale' })
+      }
     }
   }
   if (definition) {

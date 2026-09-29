@@ -42,6 +42,9 @@ function baseSheet(): SheetState {
   s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
   s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-19' })
   s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
+  // Tape-measure for distance-style entries (fresh sheets default to F3J;
+  // tape-measure is Reading == UpTo identity, so cm-grid values revalidate).
+  s = sheetReducer(s, { type: 'setTapeChoice', choice: 'Tape measure' })
   s = sheetReducer(s, { type: 'setTaskPick', roundIndex: 0, taskRef: 'D' })
   s = sheetReducer(s, { type: 'setTaskPick', roundIndex: 1, taskRef: 'G' })
   s = sheetReducer(s, { type: 'setRounds', rounds: 2 })
@@ -482,6 +485,9 @@ describe('calculate — refusals', () => {
     s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
     s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-19' })
     s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
+    // Tape-measure for distance-style entries (fresh sheets default to F3J;
+    // tape-measure is Reading == UpTo identity, so cm-grid values revalidate).
+    s = sheetReducer(s, { type: 'setTapeChoice', choice: 'Tape measure' })
     s = sheetReducer(s, { type: 'setTaskPick', roundIndex: 0, taskRef: 'B' })
     s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva' } })
     s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
@@ -516,6 +522,9 @@ describe('calculate — BeforeFlying parameters (NDC Radian)', () => {
     s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
     s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-19' })
     s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
+    // Tape-measure for distance-style entries (fresh sheets default to F3J;
+    // tape-measure is Reading == UpTo identity, so cm-grid values revalidate).
+    s = sheetReducer(s, { type: 'setTapeChoice', choice: 'Tape measure' })
     s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
     s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
     s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu', mfnz: '2345' } })
@@ -570,6 +579,67 @@ describe('calculate — BeforeFlying parameters (NDC Radian)', () => {
     expect(report.ok, report.steps.map((s) => `${s.status} ${s.label} ${s.detail ?? ''}`).join('\n')).toBe(true)
     const flight = fake.competitionByName(RADIAN_CONTEST, '2026-09-19')!.entries[0].flights.get(1)!
     expect(flight.get('landingDistance')).toEqual({ kind: 'Number', number: 0 })
+  })
+})
+
+describe('calculate — provisional tape path (F3J default, wire follow-up ss_tape-catalogue-on-the-wire)', () => {
+  const radian = radianFixture as unknown as ClassDefinition
+
+  function tapeSheet(landing1: string, landing2: string): SheetState {
+    let s = sheetReducer(initialSheet(), { type: 'classChosen', contentHash: 'hash', definition: radian })
+    s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
+    s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-19' })
+    s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
+    // Fresh sheets default to F3J — assert the default rather than setting it.
+    expect(s.tapeChoice).toBe('NZ F3J side')
+    s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
+    s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
+    s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu', mfnz: '2345' } })
+    s = sheetReducer(s, { type: 'setCell', key: sheetCellKey(1, 1, 1, 'flightTime'), text: '300' })
+    s = sheetReducer(s, { type: 'setCell', key: sheetCellKey(1, 2, 1, 'flightTime'), text: '310' })
+    s = sheetReducer(s, { type: 'setCell', key: sheetCellKey(1, 1, 1, 'landingDistance'), text: landing1 })
+    s = sheetReducer(s, { type: 'setCell', key: sheetCellKey(1, 2, 1, 'landingDistance'), text: landing2 })
+    return s
+  }
+
+  it('declares the F3J scale and carries its instrument on every landing capture', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(radian)
+    const report = await runCalculate(api, tapeSheet('100', '0'), noProgress)
+
+    expect(report.ok, report.steps.map((s) => `${s.status} ${s.label} ${s.detail ?? ''}`).join('\n')).toBe(true)
+    const comp = fake.competitionByName(RADIAN_CONTEST, '2026-09-19')!
+    expect(comp.declaredInstruments).toEqual([{ instrument: 'NZ F3J side', metric: 'landingDistance' }])
+    const landings = comp.capturedInstruments.filter((c) => c.metric === 'landingDistance')
+    expect(landings).toHaveLength(2)
+    expect(landings.every((c) => c.instrument === 'NZ F3J side')).toBe(true)
+    // Off-tape 0 is one tap on the F3J set — captured as an exact zero.
+    expect(comp.entries[0].flights.get(1)!.get('landingDistance')).toEqual({ kind: 'Number', number: 100 })
+  })
+
+  it('refuses an off-scale reading client-side before anything reaches the wire', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(radian)
+    const report = await runCalculate(api, tapeSheet('99.5', '0'), noProgress)
+
+    expect(report.ok).toBe(false)
+    expect(report.cellErrors.some((c) => c.error.includes('NZ F3J side'))).toBe(true)
+    expect(fake.competitionByName(RADIAN_CONTEST, '2026-09-19')).toBeUndefined()
+  })
+
+  it('tape-measure declares its identity scale and captures with its instrument', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(radian)
+    let s = tapeSheet('8', '9')
+    s = sheetReducer(s, { type: 'setTapeChoice', choice: 'Tape measure' })
+    const report = await runCalculate(api, s, noProgress)
+
+    expect(report.ok, report.steps.map((st) => `${st.status} ${st.label} ${st.detail ?? ''}`).join('\n')).toBe(true)
+    const comp = fake.competitionByName(RADIAN_CONTEST, '2026-09-19')!
+    expect(comp.declaredInstruments).toEqual([{ instrument: 'Tape measure', metric: 'landingDistance' }])
+    const landings = comp.capturedInstruments.filter((c) => c.metric === 'landingDistance')
+    expect(landings).toHaveLength(2)
+    expect(landings.every((c) => c.instrument === 'Tape measure')).toBe(true)
   })
 })
 
@@ -790,6 +860,9 @@ function x5jSheet(): SheetState {
   s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
   s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-22' })
   s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
+  // Tape-measure for distance-style entries (fresh sheets default to F3J;
+  // tape-measure is Reading == UpTo identity, so cm-grid values revalidate).
+  s = sheetReducer(s, { type: 'setTapeChoice', choice: 'Tape measure' })
   s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
   s = sheetReducer(s, { type: 'setPilotCount', count: 1 })
   s = sheetReducer(s, { type: 'setCell', key: sheetCellKey(1, 1, 1, 'glideTime'), text: '60' })
@@ -847,6 +920,9 @@ function f3jSheet(): SheetState {
   s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
   s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-20' })
   s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
+  // Tape-measure for distance-style entries (fresh sheets default to F3J;
+  // tape-measure is Reading == UpTo identity, so cm-grid values revalidate).
+  s = sheetReducer(s, { type: 'setTapeChoice', choice: 'Tape measure' })
   s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
   s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
   s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu', mfnz: '2345' } })
@@ -1037,6 +1113,9 @@ function f5jSheet(): SheetState {
   s = sheetReducer(s, { type: 'setField', field: 'location', value: 'Matamata' })
   s = sheetReducer(s, { type: 'setField', field: 'date', value: '2026-09-21' })
   s = sheetReducer(s, { type: 'setField', field: 'cdName', value: 'Pete' })
+  // Tape-measure for distance-style entries (fresh sheets default to F3J;
+  // tape-measure is Reading == UpTo identity, so cm-grid values revalidate).
+  s = sheetReducer(s, { type: 'setTapeChoice', choice: 'Tape measure' })
   s = sheetReducer(s, { type: 'setPilot', index: 0, patch: { name: 'Ana Silva', mfnz: '1234' } })
   s = sheetReducer(s, { type: 'setPilotCount', count: 2 })
   s = sheetReducer(s, { type: 'setPilot', index: 1, patch: { name: 'Ben Tu', mfnz: '2345' } })
@@ -1133,6 +1212,8 @@ function seedDuplicate(fake: FakeSoarscore, id: string): void {
     groups: new Map(),
     competitors: [],
     entries: [],
+    declaredInstruments: [],
+    capturedInstruments: [],
   })
 }
 

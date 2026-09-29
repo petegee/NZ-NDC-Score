@@ -5,6 +5,7 @@ import { isNdcClass, latestPerClass } from './classes'
 import { formatValue } from '../grid/parse'
 import type { FlightRowSpec, GridColumn } from '../grid/schema'
 import { EXACT_ZERO_HINT } from '../grid/schema'
+import { F3J_INSTRUMENT, LANDING_METRIC, TAPE_CHOICES, readingSetFor, type TapeChoice } from './tapes'
 import {
   initialSheet,
   loadSheet,
@@ -343,6 +344,20 @@ export function SheetPage({ base }: { base: string }) {
               }}
             />
           </label>
+          <label className="span-3">
+            <span>Landing tape</span>
+            <select
+              value={state.tapeChoice}
+              onChange={(e) => dispatch({ type: 'setTapeChoice', choice: e.target.value as TapeChoice })}
+            >
+              {TAPE_CHOICES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <small className="sub-note">0 is the off-tape reading — record 0 for a landing that scores zero landing points.</small>
+          </label>
         </div>
         {catalogue && (
           <section className="sub-panel">
@@ -609,6 +624,7 @@ function SheetGrid({
                           text={state.cells[sheetCellKey(rg.roundOrdinal, pi + 1, spec.sequence, col.metric)] ?? ''}
                           enabled={enabled}
                           column={col}
+                          tapeChoice={col.metric === LANDING_METRIC ? state.tapeChoice : undefined}
                           placeholder={
                             rg.grid.zeroHintMetrics.includes(col.metric) ? EXACT_ZERO_HINT : undefined
                           }
@@ -852,12 +868,14 @@ function SheetCell({
   text,
   enabled,
   column,
+  tapeChoice,
   placeholder,
   onText,
 }: {
   text: string
   enabled: boolean
   column: GridColumn
+  tapeChoice?: TapeChoice
   placeholder?: string
   onText(text: string): void
 }) {
@@ -875,13 +893,35 @@ function SheetCell({
       </button>
     )
   }
+  // Provisional mark-mode picker: the F3J landing column renders the wire
+  // reading set (readings only, never points); off-tape 0 is one tap via the
+  // blank option's explicit 0. Tape-measure stays free-text — the cm-grid
+  // check in validateSheet is the gate.
+  if (column.metric === LANDING_METRIC && tapeChoice === F3J_INSTRUMENT) {
+    const options = readingSetFor(F3J_INSTRUMENT)
+    return (
+      <select
+        className="cell"
+        value={text}
+        disabled={!enabled}
+        onChange={(e) => onText(e.target.value)}
+      >
+        <option value="">—</option>
+        {options.map((r) => (
+          <option key={r} value={String(r)}>
+            {r === 0 ? '0 (off tape)' : String(r)}
+          </option>
+        ))}
+      </select>
+    )
+  }
   return (
     <input
       className="cell"
       inputMode="decimal"
       value={text}
       disabled={!enabled}
-      placeholder={placeholder}
+      placeholder={placeholder ?? (column.metric === LANDING_METRIC ? '0 or 0.01–15.00' : undefined)}
       onChange={(e) => onText(e.target.value)}
     />
   )

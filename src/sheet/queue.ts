@@ -199,6 +199,7 @@ export async function runOne(
         flightSequence: cmd.flightSequence,
         metric: cmd.metric,
         value: cmd.value,
+        ...(cmd.instrument ? { instrument: cmd.instrument } : {}),
       })
     } else {
       await deps.api.amendMeasurement({
@@ -208,6 +209,7 @@ export async function runOne(
         newValue: cmd.value,
         reason: cmd.reason,
         by: deps.cdName,
+        ...(cmd.instrument ? { instrument: cmd.instrument } : {}),
       })
     }
     dispatch({ type: 'commandSucceeded', id: cmd.id, value: cmd.value })

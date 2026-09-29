@@ -1,0 +1,99 @@
+{
+  "name": "NZ F3J side",
+  "unit": "m",
+  "marks": [
+    {
+      "upTo": 0.2,
+      "reading": 100
+    },
+    {
+      "upTo": 0.4,
+      "reading": 99
+    },
+    {
+      "upTo": 0.6,
+      "reading": 98
+    },
+    {
+      "upTo": 0.8,
+      "reading": 97
+    },
+    {
+      "upTo": 1.0,
+      "reading": 96
+    },
+    {
+      "upTo": 1.2,
+      "reading": 95
+    },
+    {
+      "upTo": 1.4,
+      "reading": 94
+    },
+    {
+      "upTo": 1.6,
+      "reading": 93
+    },
+    {
+      "upTo": 1.8,
+      "reading": 92
+    },
+    {
+      "upTo": 2.0,
+      "reading": 91
+    },
+    {
+      "upTo": 3.0,
+      "reading": 90
+    },
+    {
+      "upTo": 4.0,
+      "reading": 85
+    },
+    {
+      "upTo": 5,
+      "reading": 80
+    },
+    {
+      "upTo": 6,
+      "reading": 75
+    },
+    {
+      "upTo": 7,
+      "reading": 70
+    },
+    {
+      "upTo": 8,
+      "reading": 65
+    },
+    {
+      "upTo": 9,
+      "reading": 60
+    },
+    {
+      "upTo": 10,
+      "reading": 55
+    },
+    {
+      "upTo": 11,
+      "reading": 50
+    },
+    {
+      "upTo": 12,
+      "reading": 45
+    },
+    {
+      "upTo": 13,
+      "reading": 40
+    },
+    {
+      "upTo": 14,
+      "reading": 35
+    },
+    {
+      "upTo": 15,
+      "reading": 30
+    }
+  ],
+  "offTapeReading": 0
+}

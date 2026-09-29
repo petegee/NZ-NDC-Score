@@ -73,6 +73,9 @@ interface FakeCompetition {
   groups: Map<number, string[][]>
   competitors: { id: string; personId: string; number: number }[]
   entries: FakeEntry[]
+  /** Declared instruments (provisional tape path) + per-measurement instrument names. */
+  declaredInstruments: { instrument: string; metric: string }[]
+  capturedInstruments: { competitorId: string; flightSequence: number; metric: string; instrument?: string }[]
 }
 
 const GROUP_SIZE = 2
@@ -296,6 +299,8 @@ export class FakeSoarscore {
           groups: new Map(),
           competitors: [],
           entries: [],
+          declaredInstruments: [],
+          capturedInstruments: [],
         }
         this.competitions.push(c)
         return { value: c.id, warnings: [] }
@@ -499,6 +504,13 @@ export class FakeSoarscore {
         }
         metrics.set(body.metric, body.value)
         e.originals.get(body.flightSequence)?.set(body.metric, body.value)
+        const compEntry = this.competitions.find((x) => x.entries.some((en) => en.id === body.entryRef))
+        compEntry?.capturedInstruments.push({
+          competitorId: e.competitorId,
+          flightSequence: body.flightSequence,
+          metric: body.metric,
+          instrument: body.instrument ?? undefined,
+        })
         return { value: e.id, warnings: [] }
       },
       amendMeasurement: async (body) => {
@@ -513,6 +525,15 @@ export class FakeSoarscore {
           metric: body.metric,
           newValue: body.newValue,
         })
+        if (body.instrument !== undefined) {
+          const compEntry = this.competitions.find((x) => x.entries.some((en) => en.id === body.entryRef))
+          compEntry?.capturedInstruments.push({
+            competitorId: e.competitorId,
+            flightSequence: body.flightSequence,
+            metric: body.metric,
+            instrument: body.instrument ?? undefined,
+          })
+        }
         return { value: e.id, warnings: [] }
       },
 
@@ -593,7 +614,11 @@ export class FakeSoarscore {
       }),
       findClassDefinitions: async () => ({ value: [], warnings: [] }),
       getClassDefinition: async () => ({ value: definition, warnings: [] }),
-      declareInstruments: async () => ({ value: '', warnings: [] }),
+      declareInstruments: async (body) => {
+        const c = comp(body.competitionRef)
+        c.declaredInstruments = body.instruments.map((i) => ({ instrument: i.instrument, metric: i.metric }))
+        return { value: c.id, warnings: [] }
+      },
       recordEntryPenalty: async (body) => {
         const e = entry(body.entryRef)
         if (e.penalties.some((p) => p.infractionType === body.infractionType)) {

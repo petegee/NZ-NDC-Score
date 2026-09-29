@@ -48,6 +48,7 @@ export type PendingCommand =
       flightSequence: number
       metric: string
       value: MeasuredValue
+      instrument?: string
     })
   | (CommandBase & {
       kind: 'amend'
@@ -55,6 +56,7 @@ export type PendingCommand =
       metric: string
       value: MeasuredValue
       reason: string
+      instrument?: string
     })
   | (CommandBase & { kind: 'penalty'; infractionType: string })
 
@@ -100,6 +102,7 @@ export function chainCommands(
   entries: Record<string, EntryProgress>,
   nextId: () => number,
   amend?: { reason: string },
+  instrument?: string,
 ): PendingCommand[] {
   const progress = entries[competitorId]
   const commands: PendingCommand[] = []
@@ -127,6 +130,7 @@ export function chainCommands(
       value,
       reason: amend.reason,
       attempt: 0,
+      ...(instrument ? { instrument } : {}),
     })
   } else {
     commands.push({
@@ -138,6 +142,7 @@ export function chainCommands(
       metric,
       value,
       attempt: 0,
+      ...(instrument ? { instrument } : {}),
     })
   }
   return commands

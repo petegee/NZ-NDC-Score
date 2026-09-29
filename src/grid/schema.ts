@@ -14,6 +14,13 @@ import { stopwatchPair, type StopwatchPair } from './stopwatch'
  * reference to a class parameter by name. */
 export type NumberOrParam = number | { param: string }
 
+/** The wire name of the landing metric — the stable contract declarations bind
+ * (`DeclaredInstrument.metric`). The column renders as plain "Landing" (no
+ * unit): in tape mode the cell holds a mark reading, not a distance, and even
+ * in tape-measure mode the reading is what was observed. Presentation-only;
+ * never a class branch (law 3). */
+export const LANDING_METRIC = 'landingDistance'
+
 export interface GridColumn {
   /** Column identity — always the metric name, never the label. */
   metric: string
@@ -151,9 +158,12 @@ export function deriveColumns(task: TaskDefinition): GridColumn[] {
   const pair = stopwatchPair(task)
   return task.metrics.map((m: MetricDefinition) => ({
     metric: m.name,
-    label: humanise(m.name),
+    label: m.name === LANDING_METRIC ? 'Landing' : humanise(m.name),
     kind: m.kind,
-    unit: m.unit ?? undefined,
+    // The landing column shows the reading taken, never a unit-suffixed
+    // distance — see LANDING_METRIC. Parsing/rounding ignore the unit
+    // (only 's' is special), so dropping it here is display-only.
+    unit: m.name === LANDING_METRIC ? undefined : (m.unit ?? undefined),
     declaredBeforeLaunch: m.declaredBeforeLaunch ?? false,
     precision: m.precision
       ? { mode: String(m.precision.mode), precision: Number(m.precision.precision) }
