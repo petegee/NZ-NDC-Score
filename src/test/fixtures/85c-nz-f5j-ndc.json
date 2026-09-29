@@ -239,7 +239,7 @@
               "$kind": "rate",
               "metricRef": "flightTime",
               "rate": 1,
-              "cap": 600,
+              "cap": 599,
               "capScope": "PerFlight"
             },
             {
@@ -279,6 +279,15 @@
                       "kind": "Flag",
                       "flag": false
                     }
+                  },
+                  {
+                    "$kind": "comparison",
+                    "leftMetricRef": "flightTime",
+                    "op": "LessThan",
+                    "rightValue": {
+                      "kind": "Number",
+                      "number": 600
+                    }
                   }
                 ]
               },
@@ -286,6 +295,10 @@
                 "$kind": "lookup",
                 "metricRef": "landingDistance",
                 "rows": [
+                  {
+                    "upTo": 0,
+                    "points": 0
+                  },
                   {
                     "upTo": 1,
                     "points": 50

@@ -26,14 +26,13 @@ describe('ALES 200 (NDC format) fixture', () => {
     expect(phase0?.tasks.map((t) => t.code)).toEqual(['D'])
   })
 
-  it('derives 5 metric columns in declared order for task D', () => {
+  it('derives 4 metric columns in declared order for task D', () => {
     const grid = deriveTaskGrid(taskByRef(ales, 'D')!)
     expect(grid.columns.map((c) => c.metric)).toEqual([
       'flightTime',
       'landingDistance',
       'damagedAndNotSafelyFlyable',
       'touchedByCompetitor',
-      'landedWithin75m',
     ])
   })
 
@@ -45,8 +44,10 @@ describe('ALES 200 (NDC format) fixture', () => {
 
   it('carries whenNotRecorded assumptions as hints', () => {
     const grid = deriveTaskGrid(taskByRef(ales, 'D')!)
-    const landed = grid.columns.find((c) => c.metric === 'landedWithin75m')
-    expect(landed?.whenNotRecorded).toEqual({ kind: 'Flag', flag: true })
+    const damaged = grid.columns.find((c) => c.metric === 'damagedAndNotSafelyFlyable')
+    expect(damaged?.whenNotRecorded).toEqual({ kind: 'Flag', flag: false })
+    const touched = grid.columns.find((c) => c.metric === 'touchedByCompetitor')
+    expect(touched?.whenNotRecorded).toEqual({ kind: 'Flag', flag: false })
     const time = grid.columns.find((c) => c.metric === 'flightTime')
     expect(time?.whenNotRecorded).toBeUndefined()
   })
@@ -126,8 +127,9 @@ describe('F3K NDC fixture', () => {
         'launchedInWorkingTime',
       ])
     }
-    // The M-class task zeroes on a different declared flag.
-    expect(deriveTaskGrid(taskByRef(ales, 'D')!).zeroFlightFlags).toEqual(['landedWithin75m'])
+    // The M-class task no longer declares a zero-flight flag
+    // (landedWithin75m removed upstream) — no flightValidWhen gate.
+    expect(deriveTaskGrid(taskByRef(ales, 'D')!).zeroFlightFlags).toEqual([])
   })
 })
 

@@ -77,15 +77,6 @@
                 "kind": "Flag",
                 "flag": false
               }
-            },
-            {
-              "name": "landedWithin75m",
-              "kind": "Flag",
-              "declaredBeforeLaunch": false,
-              "whenNotRecorded": {
-                "kind": "Flag",
-                "flag": true
-              }
             }
           ],
           "flights": {
@@ -97,15 +88,6 @@
               "param": "roundDuration"
             },
             "maxLaunches": 1
-          },
-          "flightValidWhen": {
-            "$kind": "comparison",
-            "leftMetricRef": "landedWithin75m",
-            "op": "EqualTo",
-            "rightValue": {
-              "kind": "Flag",
-              "flag": true
-            }
           },
           "score": [
             {
@@ -152,6 +134,10 @@
                 "$kind": "lookup",
                 "metricRef": "landingDistance",
                 "rows": [
+                  {
+                    "upTo": 0,
+                    "points": 0
+                  },
                   {
                     "upTo": 7,
                     "points": 50
