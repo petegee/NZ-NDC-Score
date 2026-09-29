@@ -66,6 +66,13 @@ export interface DeclareInstrumentsInput {
   by: string
 }
 
+export interface CorrectInstrumentDeclarationInput {
+  competitionRef: string
+  instruments: components['schemas']['DeclaredInstrument'][]
+  reason: string
+  by: string
+}
+
 export interface Api {
   registerPerson(body: RegisterPerson): Promise<ApiResult<string>>
   renamePerson(personId: string, name: string): Promise<ApiResult<string>>
@@ -99,6 +106,7 @@ export interface Api {
     body: Omit<BindParameter, 'competitionRef'> & { competitionRef: string },
   ): Promise<ApiResult<string>>
   declareInstruments(body: DeclareInstrumentsInput): Promise<ApiResult<string>>
+  correctInstrumentDeclaration(body: CorrectInstrumentDeclarationInput): Promise<ApiResult<string>>
 
   openEntry(body: OpenEntryInput): Promise<ApiResult<string>>
   openFlight(entryRef: string, sequence?: number): Promise<ApiResult<string>>
@@ -213,6 +221,12 @@ export function createApi(base: string, fetchImpl: FetchLike = fetch): Api {
       unwrapId(
         await call('POST', '/declare-instruments', {
           body: { competitionRef: id(competitionRef), instruments, by },
+        }),
+      ),
+    correctInstrumentDeclaration: async ({ competitionRef, instruments, reason, by }) =>
+      unwrapId(
+        await call('POST', '/correct-instrument-declaration', {
+          body: { competitionRef: id(competitionRef), instruments, reason, by },
         }),
       ),
 

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { GroupScore } from '../api/types'
+import { LANDING_METRIC } from '../grid/schema'
 import { sheetCellKey, type SheetRoundGrid } from './sheet'
 import { ResultsTable } from './ResultsTable'
 
@@ -264,5 +265,244 @@ describe('ResultsTable — one row per competitor, one column pair per group-rou
     // Flight 2's first (only) column opens with the lighter flight rule.
     expect(aliceRow.querySelectorAll('td')[3]).toHaveClass('flight-start')
     expect(aliceRow.querySelectorAll('td')[2]).not.toHaveClass('flight-start')
+  })
+})
+
+describe('ResultsTable — landing-points column (ss_per-term-landing-points)', () => {
+  const landingGrid: SheetRoundGrid = {
+    roundOrdinal: 1,
+    taskRef: 'A',
+    grid: {
+      taskRef: 'A',
+      taskName: 'Task A',
+      timing: { kind: 'Fixed' },
+      columns: [
+        { metric: 'flightTime', label: 'Time', kind: 'Number', unit: 's', declaredBeforeLaunch: false },
+        { metric: LANDING_METRIC, label: 'Landing', kind: 'Number', declaredBeforeLaunch: false },
+      ],
+      flightRows: [
+        { sequence: 1, label: 'Flight 1', dynamic: false },
+        { sequence: 2, label: 'Flight 2', dynamic: false },
+      ],
+      zeroFlightFlags: [],
+      zeroHintMetrics: [],
+    },
+    perRoundParams: [],
+  }
+  const landingSchedule = [{ roundOrdinal: 1, taskRoundOrdinal: 1, taskRef: 'A' }]
+  const landingStandings = {
+    scores: [
+      { competitorRef: { value: 'c-1' }, score: '625', disqualified: false, placing: 1 },
+      { competitorRef: { value: 'c-2' }, score: '300', disqualified: false, placing: 2 },
+    ],
+  }
+  // Alice: two flown flights. Flight 1 lists the landing term second (engine
+  // order); flight 2 lists it first — the column keys by metricRef, never by
+  // position. Bob: NoResult — absence, never zero.
+  const landingRound: GroupScore = {
+    groupRef: { value: 'g-1' },
+    results: [
+      {
+        competitorRef: { value: 'c-1' },
+        role: 'Original',
+        state: 'Valid',
+        rawScore: '625',
+        preNormalisationScore: '625',
+        awaitingCapture: [],
+        flights: [
+          {
+            sequence: 1,
+            terms: [
+              { termIndex: 0, metricRef: 'flightTime', metricConsumed: 300, points: 300 },
+              { termIndex: 1, metricRef: LANDING_METRIC, metricConsumed: 7, points: 25 },
+            ],
+          },
+          {
+            sequence: 2,
+            terms: [
+              { termIndex: 1, metricRef: LANDING_METRIC, metricConsumed: 3, points: 50 },
+              { termIndex: 0, metricRef: 'flightTime', metricConsumed: 250, points: 250 },
+            ],
+          },
+        ],
+      },
+      {
+        competitorRef: { value: 'c-2' },
+        role: 'Original',
+        state: 'NoResult',
+        rawScore: 0,
+        preNormalisationScore: 0,
+        awaitingCapture: [{ flightSequence: 1, awaitedMetric: 'flightTime' }],
+        flights: [],
+      },
+    ],
+    winnerRef: { value: 'c-1' },
+    validCount: 1,
+    isAnnulled: false,
+  }
+  const landingCells: Record<string, string> = {
+    [sheetCellKey(1, 1, 1, 'flightTime')]: '300',
+    [sheetCellKey(1, 1, 1, LANDING_METRIC)]: '7',
+    [sheetCellKey(1, 1, 2, 'flightTime')]: '250',
+    [sheetCellKey(1, 1, 2, LANDING_METRIC)]: '3',
+  }
+  const landingProps = {
+    schedule: landingSchedule,
+    roundScores: { '1:1': [landingRound] },
+    standings: landingStandings,
+    names,
+    grids: [landingGrid],
+    cells: landingCells,
+    rowCompetitors: { '1': 'c-1', '2': 'c-2' },
+    rowCountPerRound: [2],
+  }
+
+  it('renders one points column per landing column, the engine award verbatim beside each mark', () => {
+    render(<ResultsTable {...landingProps} />)
+    const rows = screen.getAllByRole('row')
+    // Block header spans round + 2 flights × (2 marks + 1 pts) + raw = 8.
+    const blockHead = Array.from(rows[0].querySelectorAll('th')).find((th) =>
+      th.textContent?.includes('Round 1'),
+    ) as HTMLElement
+    expect(blockHead).toHaveAttribute('colspan', '8')
+    const subHeads = Array.from(rows[1].querySelectorAll('th')).map((th) => th.textContent ?? '')
+    expect(subHeads).toEqual([
+      'Round',
+      'Time (s)',
+      'Landing',
+      'Landing pts',
+      'Time (s)',
+      'Landing',
+      'Landing pts',
+      'Raw score',
+    ])
+
+    const aliceRow = rows.find((r) => r.textContent?.includes('Alice A')) as HTMLElement
+    const alice = Array.from(aliceRow.querySelectorAll('td')).map((td) => td.textContent)
+    expect(alice[0]).toBe('Alice A')
+    expect(alice[1]).toBe('1')
+    expect(alice[2]).toBe('300') // flight 1 mark text, verbatim
+    expect(alice[3]).toBe('7')
+    expect(alice[4]).toBe('25') // flight 1 engine award, verbatim
+    expect(alice[5]).toBe('250')
+    expect(alice[6]).toBe('3')
+    expect(alice[7]).toBe('50') // found by metricRef though listed first
+    expect(alice[8]).toBe('625')
+  })
+
+  it('never leaks non-landing terms into the points column and never computes', () => {
+    // Flight-time points (300/250) appear nowhere in the pts cells — only the
+    // landing term's award does, read straight off the wire (law 2: no
+    // reading→points mapping, no arithmetic in client code).
+    render(<ResultsTable {...landingProps} />)
+    const rows = screen.getAllByRole('row')
+    const aliceRow = rows.find((r) => r.textContent?.includes('Alice A')) as HTMLElement
+    const pts = [aliceRow.querySelectorAll('td')[4].textContent, aliceRow.querySelectorAll('td')[7].textContent]
+    expect(pts).toEqual(['25', '50'])
+  })
+
+  it('shows absence as empty, never zero — NoResult, pending and gate-zeroed flights', () => {
+    const gateZeroed: GroupScore = {
+      ...landingRound,
+      results: [
+        landingRound.results[0],
+        landingRound.results[1],
+        {
+          competitorRef: { value: 'c-3' },
+          role: 'Original',
+          state: 'Valid',
+          rawScore: 0,
+          preNormalisationScore: 0,
+          awaitingCapture: [],
+          // Flight-gate-zeroed: the flight is selected at 0 with the
+          // interpreter's own empty terms — no landing value to show.
+          flights: [{ sequence: 1, terms: [] }],
+        },
+      ],
+    }
+    render(
+      <ResultsTable
+        {...landingProps}
+        roundScores={{ '1:1': [gateZeroed] }}
+        standings={{
+          scores: [
+            ...landingStandings.scores,
+            { competitorRef: { value: 'c-3' }, score: 0, disqualified: false, placing: 3 },
+          ],
+        }}
+        names={new Map([...names, ['c-3', 'Carol C']])}
+        rowCompetitors={{ '1': 'c-1', '2': 'c-2', '3': 'c-3' }}
+      />,
+    )
+    const rows = screen.getAllByRole('row')
+    const bobRow = rows.find((r) => r.textContent?.includes('Bob B')) as HTMLElement
+    const bob = Array.from(bobRow.querySelectorAll('td')).map((td) => td.textContent)
+    expect(bob[4]).toBe('') // NoResult flight 1 pts: empty, never zero
+    expect(bob[7]).toBe('') // NoResult flight 2 pts: empty, never zero
+    expect(bob[8]).toBe('no result')
+
+    const carolRow = rows.find((r) => r.textContent?.includes('Carol C')) as HTMLElement
+    const carol = Array.from(carolRow.querySelectorAll('td')).map((td) => td.textContent)
+    expect(carol[4]).toBe('') // gate-zeroed: empty terms, empty cell
+    expect(carol[8]).toBe('0') // …while the raw score still shows the engine's zero
+  })
+
+  it('renders the engine’s zero for an off-tape 0, distinct from absence', () => {
+    const offTape: GroupScore = {
+      ...landingRound,
+      results: [
+        {
+          ...landingRound.results[0],
+          flights: [
+            {
+              sequence: 1,
+              terms: [
+                { termIndex: 0, metricRef: 'flightTime', metricConsumed: 300, points: 300 },
+                { termIndex: 1, metricRef: LANDING_METRIC, metricConsumed: 0, points: 0 },
+              ],
+            },
+            ...(landingRound.results[0].flights ?? []).filter((f) => f.sequence === 2),
+          ],
+        },
+        landingRound.results[1],
+      ],
+    }
+    render(
+      <ResultsTable
+        {...landingProps}
+        roundScores={{ '1:1': [offTape] }}
+        cells={{ ...landingCells, [sheetCellKey(1, 1, 1, LANDING_METRIC)]: '0' }}
+      />,
+    )
+    const rows = screen.getAllByRole('row')
+    const aliceRow = rows.find((r) => r.textContent?.includes('Alice A')) as HTMLElement
+    const alice = Array.from(aliceRow.querySelectorAll('td')).map((td) => td.textContent)
+    expect(alice[3]).toBe('0') // the off-tape mark, echoed
+    expect(alice[4]).toBe('0') // the engine's zero — a value, not absence
+  })
+
+  it('tolerates results predating the breakdown — missing flights reads as empty', () => {
+    const legacy: GroupScore = {
+      groupRef: { value: 'g-9' },
+      results: [
+        {
+          competitorRef: { value: 'c-1' },
+          role: 'Original',
+          state: 'Valid',
+          rawScore: '300',
+          preNormalisationScore: '300',
+          awaitingCapture: [],
+        },
+      ],
+      validCount: 1,
+      isAnnulled: false,
+    }
+    render(<ResultsTable {...landingProps} roundScores={{ '1:1': [legacy] }} />)
+    const rows = screen.getAllByRole('row')
+    const aliceRow = rows.find((r) => r.textContent?.includes('Alice A')) as HTMLElement
+    const alice = Array.from(aliceRow.querySelectorAll('td')).map((td) => td.textContent)
+    expect(alice[4]).toBe('')
+    expect(alice[7]).toBe('')
+    expect(alice[8]).toBe('300')
   })
 })

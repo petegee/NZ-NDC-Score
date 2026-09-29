@@ -115,6 +115,13 @@ export interface CompetitionFold {
     adoptedAt: string
   }
   parameterBindings: ParameterBindingFold[]
+  /** The declared tape set, verbatim from the wire (null until the first
+   * declaration). Optional for tolerance of servers predating it. */
+  declaredInstruments?: {
+    instruments: DeclaredInstrument[]
+    by: string
+    at: string
+  } | null
 }
 
 export interface CompetitorFold {
@@ -220,6 +227,25 @@ export interface PendingFlightDiagnostic {
   awaitedMetric: string
 }
 
+/** One score term's awarded contribution on one flight, projected verbatim
+ * from the engine's own TermContribution (Soarscore per-term-score-breakdown,
+ * unblocking ss_per-term-landing-points). Keyed by metricRef, never position:
+ * term order is an engine detail (law 3). Raw Score terms only. */
+export interface ScoreTermView {
+  termIndex: number
+  metricRef: string | null
+  metricConsumed: number | string
+  points: number | string
+}
+
+/** One selected flight's per-term breakdown. Per-flight points sum to the
+ * flight's score before PerTask-cap correction and RawScore rounding — the
+ * deltas stay server-side, so the column never re-derives RawScore. */
+export interface FlightScoreView {
+  sequence: number
+  terms: ScoreTermView[]
+}
+
 export interface CompetitorTaskResult {
   competitorRef: Id
   role: ReflightRole
@@ -227,6 +253,10 @@ export interface CompetitorTaskResult {
   rawScore: number | string
   preNormalisationScore: number | string
   awaitingCapture: PendingFlightDiagnostic[]
+  /** The selected flights' per-term breakdowns, verbatim from the engine.
+   * Empty (never null) for NoResult rows — absence, never zero. Optional for
+   * tolerance of servers predating the breakdown: absent reads as empty. */
+  flights?: FlightScoreView[]
 }
 
 export interface GroupScore {

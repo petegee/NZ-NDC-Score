@@ -75,6 +75,9 @@ interface FakeCompetition {
   entries: FakeEntry[]
   /** Declared instruments (provisional tape path) + per-measurement instrument names. */
   declaredInstruments: { instrument: string; metric: string }[]
+  /** Declare-once mirror of the service: the first declaration flips this;
+   * a second declaration is refused (declareInstruments.alreadyDeclared). */
+  instrumentsDeclared: boolean
   capturedInstruments: { competitorId: string; flightSequence: number; metric: string; instrument?: string }[]
 }
 
@@ -197,6 +200,19 @@ export class FakeSoarscore {
           phaseOrdinal: b.phaseOrdinal ?? null,
           roundOrdinal: b.roundOrdinal ?? null,
         })),
+        // The declared tape set, verbatim: null until the first declaration,
+        // exactly what the orchestrator compares before re-declaring. The
+        // stored pairs carry only what the fake asserts on; the cast is the
+        // fake's whole lie, and the comparison reads just those fields.
+        declaredInstruments: c.instrumentsDeclared
+          ? {
+              instruments: c.declaredInstruments.map(
+                (i) => ({ instrument: i.instrument, metric: i.metric }) as never,
+              ),
+              by: 'CD',
+              at: '2026-09-19T00:00:00Z',
+            }
+          : null,
       },
       pairwiseCoOccurrence: [],
     })
@@ -300,6 +316,7 @@ export class FakeSoarscore {
           competitors: [],
           entries: [],
           declaredInstruments: [],
+          instrumentsDeclared: false,
           capturedInstruments: [],
         }
         this.competitions.push(c)
@@ -616,6 +633,39 @@ export class FakeSoarscore {
       getClassDefinition: async () => ({ value: definition, warnings: [] }),
       declareInstruments: async (body) => {
         const c = comp(body.competitionRef)
+        // Mirror the service's declare-once (Competition.DeclareInstruments):
+        // a first declaration is declared, every change after is a
+        // correction carrying its reason.
+        if (c.instrumentsDeclared) {
+          throw new ApiError(
+            400,
+            'declareInstruments.alreadyDeclared',
+            'Instruments have already been declared for this competition. Changing the set is InstrumentDeclarationCorrected\'s job, not a second declaration.',
+            [],
+          )
+        }
+        c.declaredInstruments = body.instruments.map((i) => ({ instrument: i.instrument, metric: i.metric }))
+        c.instrumentsDeclared = true
+        return { value: c.id, warnings: [] }
+      },
+      correctInstrumentDeclaration: async (body) => {
+        const c = comp(body.competitionRef)
+        if (!c.instrumentsDeclared) {
+          throw new ApiError(
+            400,
+            'correctInstrumentDeclaration.notDeclared',
+            'No instruments have been declared for this competition yet; there is nothing to correct.',
+            [],
+          )
+        }
+        if (!body.reason?.trim()) {
+          throw new ApiError(
+            400,
+            'correctInstrumentDeclaration.reasonRequired',
+            'A reason is required — it is the recorded justification for the correction.',
+            [],
+          )
+        }
         c.declaredInstruments = body.instruments.map((i) => ({ instrument: i.instrument, metric: i.metric }))
         return { value: c.id, warnings: [] }
       },

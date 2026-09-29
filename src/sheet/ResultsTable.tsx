@@ -1,6 +1,7 @@
 import { Fragment } from 'react'
-import type { CompetitionScore, GroupScore } from '../api/types'
+import type { CompetitionScore, CompetitorTaskResult, GroupScore } from '../api/types'
 import type { GridColumn } from '../grid/schema'
+import { LANDING_METRIC } from '../grid/schema'
 import { Verbatim } from '../scoring/ScoreTable'
 import { sheetCellKey, type SheetRoundGrid } from './sheet'
 import { useStickyHead } from './sticky-head'
@@ -27,7 +28,9 @@ function keyColumns(rg: SheetRoundGrid | undefined): GridColumn[] {
 /** The sheet's single results table: one row per competitor, ordered by the
  * server's placing (highest total first, unplaced last), then per group-round
  * a Round number, the round's key metrics (per flight, echoed verbatim from
- * the sheet text), and the Raw score, then the total. Scores are read-back
+ * the sheet text — each landing mark with the engine's awarded landing
+ * points beside it, read verbatim from the task-round result's per-term
+ * breakdown), and the Raw score, then the total. Scores are read-back
  * only (law 2); the metric readings are the organiser's own sheet text. */
 export function ResultsTable({
   schedule,
@@ -101,6 +104,26 @@ export function ResultsTable({
     return undefined
   }
 
+  /** The engine's awarded landing points for one competitor's flight —
+   * a pure wire read (law 2): the flight whose sequence matches, the term
+   * whose metricRef is the landing metric (law 3 — string equality against
+   * the class definition's own metric name, never a positional index),
+   * rendered verbatim by the caller. Absence (NoResult, pending, missed or
+   * gate-zeroed landing) is undefined — never zero. */
+  const landingPointsFor = (
+    hit: CompetitorTaskResult | undefined,
+    flightSequence: number,
+  ): number | string | undefined => {
+    const flight = (hit?.flights ?? []).find((f) => f.sequence === flightSequence)
+    return flight?.terms.find((t) => t.metricRef === LANDING_METRIC)?.points
+  }
+
+  /** Landing-mark columns carry a points column each: the engine's award
+   * beside the echoed mark text (ss_per-term-landing-points). Derived from
+   * the metric name alone — never a class branch (law 3). */
+  const landingCols = (cols: GridColumn[]): number =>
+    cols.filter((c) => c.metric === LANDING_METRIC).length
+
   /** The sheet's cell text for one competitor's flight-row metric — empty when
    * the competitor has no sheet row (registered off-sheet) or the cell was
    * never filled. */
@@ -136,7 +159,7 @@ export function ResultsTable({
             return (
               <th
                 key={key(entry)}
-                colSpan={1 + flights * cols.length + 1}
+                colSpan={1 + flights * (cols.length + landingCols(cols)) + 1}
                 className={roundClass(i, true)}
               >
                 Round {entry.roundOrdinal} · <code>{entry.taskRef}</code>
@@ -154,9 +177,9 @@ export function ResultsTable({
               <Fragment key={key(entry)}>
                 <th className={roundClass(i, true, 'col-head')}>Round</th>
                 {Array.from({ length: flights }, (_, rowIdx) =>
-                  cols.map((col, ci) => {
+                  cols.flatMap((col, ci) => {
                     const target = rg?.grid.flightRows[rowIdx]?.targetLabel
-                    return (
+                    const mark = (
                       <th
                         key={`${rowIdx}:${col.metric}`}
                         className={roundClass(
@@ -178,6 +201,18 @@ export function ResultsTable({
                         </small>
                       </th>
                     )
+                    // The landing-points column: the engine's award beside the
+                    // echoed mark text, verbatim — never a client-mapped value.
+                    if (col.metric !== LANDING_METRIC) return [mark]
+                    return [
+                      mark,
+                      <th
+                        key={`${rowIdx}:${col.metric}:pts`}
+                        className={roundClass(i, false, 'col-head', 'num')}
+                      >
+                        <small>{col.label} pts</small>
+                      </th>,
+                    ]
                   }),
                 )}
                 <th className={roundClass(i, false, 'col-head', 'num')}>Raw score</th>
@@ -201,18 +236,31 @@ export function ResultsTable({
                       : `${entry.roundOrdinal}.${entry.taskRoundOrdinal}`}
                   </td>
                   {Array.from({ length: flights }, (_, rowIdx) =>
-                    cols.map((col, ci) => (
-                      <td
-                        key={`${rowIdx}:${col.metric}`}
-                        className={roundClass(
-                          i,
-                          false,
-                          rowIdx > 0 && ci === 0 ? 'flight-start' : '',
-                        )}
-                      >
-                        {sheetText(row.ref, entry.roundOrdinal, rowIdx + 1, col.metric)}
-                      </td>
-                    )),
+                    cols.flatMap((col, ci) => {
+                      const mark = (
+                        <td
+                          key={`${rowIdx}:${col.metric}`}
+                          className={roundClass(
+                            i,
+                            false,
+                            rowIdx > 0 && ci === 0 ? 'flight-start' : '',
+                          )}
+                        >
+                          {sheetText(row.ref, entry.roundOrdinal, rowIdx + 1, col.metric)}
+                        </td>
+                      )
+                      if (col.metric !== LANDING_METRIC) return [mark]
+                      // Absence (no breakdown, pending flight, missed or
+                      // gate-zeroed landing) renders empty — never zero. An
+                      // off-tape 0 renders the engine's own zero verbatim.
+                      const points = landingPointsFor(hit, rowIdx + 1)
+                      return [
+                        mark,
+                        <td key={`${rowIdx}:${col.metric}:pts`} className={roundClass(i, false, 'num')}>
+                          {points === undefined ? '' : <Verbatim value={points} />}
+                        </td>,
+                      ]
+                    }),
                   )}
                   <td className={roundClass(i, false, 'num')}>
                     {hit ? (hit.state === 'NoResult' ? 'no result' : <Verbatim value={hit.rawScore} />) : ''}

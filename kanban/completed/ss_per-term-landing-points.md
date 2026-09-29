@@ -1,7 +1,7 @@
 # SS Story — Per-term landing points on the wire: the client never computes awards
 
-**Status:** Blocked (Soarscore-side; raised on the NdcScore board 2026-09-29
-by owner direction, `ss_` prefix) · **Raised from:** the results-table
+**Status:** Completed (Soarscore per-term-score-breakdown landed 2026-09-29;
+NdcScore column landed 2026-09-30) · **Raised from:** the results-table
 request for a landing-points column next to each raw mark capture column
 (`src/sheet/ResultsTable.tsx`)
 
@@ -65,9 +65,53 @@ hold any capture, declaration or scoring work for this breakdown.
 
 ## Acceptance
 
-- [ ] NdcScore can render, beside each captured landing mark, the landing
+- [x] NdcScore can render, beside each captured landing mark, the landing
   points the engine awarded for that flight (or task-round), from wire reads
   alone — with zero award arithmetic in client code.
-- [ ] Every rendered value equals what the engine's own scoring resolved
+- [x] Every rendered value equals what the engine's own scoring resolved
   (conditionals, rounding, normalisation included) — no silent mismatch
   between the points column and the raw-score/total columns.
+
+## NdcScore-side as built (2026-09-30)
+
+The Soarscore breakdown has shipped (staged in SoarScore2:
+`kanban/completed/per-term-score-breakdown.md` — `CompetitorTaskResultView`
+gains additive `Flights: [{sequence, terms: [{termIndex, metricRef,
+metricConsumed, points}]}]`, per-flight, all terms, keyed by `metricRef`;
+serialised camelCase), so the column landed as a pure wire read.
+
+- **Wire types:** `src/api/types.ts` gains `ScoreTermView`/`FlightScoreView`
+  (camelCase, matching the server's serialisation) and an additive optional
+  `flights?: FlightScoreView[]` on `CompetitorTaskResult`. Optional doubles
+  as old-server tolerance: a result predating the breakdown reads as empty
+  (pinned by test). No `openapi/v1.json` regen — the checked-in spec carries
+  no response schemas (all `200: OK` with `content: never`), so the
+  hand-written `types.ts` projections *are* the TS client for reads.
+- **Column:** `src/sheet/ResultsTable.tsx` renders one points column per
+  landing-mark column, per flight: the echoed mark text, then the engine's
+  award beside it via the existing `Verbatim` (`String(value)`, no
+  arithmetic, no formatting). Lookup is flight-by-`sequence`,
+  term-by-`metricRef === LANDING_METRIC` (string equality against the class
+  definition's own metric name — law 3, never a positional index, never a
+  class branch). Block `colSpan` and sub-headers (`Landing pts`) grow with
+  the landing columns; rounds without a landing metric render byte-identical
+  to before.
+- **Edge semantics (server's, rendered):** `NoResult` → empty breakdown →
+  empty pts cells with `no result` in Raw score; pending flights are omitted
+  server-side → empty; flight-gate-zeroed flights carry empty terms → empty;
+  missed landing is absence, never zero. Off-tape `0` renders the engine's
+  own zero (`0`), a value distinct from absence. PerTask-cap/rounding deltas
+  stay server-side — the column never sums to `RawScore`.
+- **Files:** `src/api/types.ts` (breakdown views), `src/sheet/ResultsTable.tsx`
+  (column + `landingPointsFor`/`landingCols` helpers),
+  `src/sheet/ResultsTable.test.tsx` (new `landing-points column` block: verbatim
+  award beside each mark, metricRef-not-position incl. swapped term order,
+  non-landing isolation, NoResult/pending/gate-zeroed absence, off-tape zero
+  vs absence, legacy missing-`flights` tolerance). `fake-soarscore.ts`
+  untouched — its `scoreTaskRound` returns no rows at all.
+- **Verification:** full `npx vitest run` 238 passed / 6 skipped (baseline
+  before this change 233 passed — 5 new tests); `npx tsc -b` clean;
+  `npm run lint` clean.
+- **Lane:** blocked → completed directly (`kanban/in-progress/` holds only
+  `.gitkeep` — no standing NdcScore in-progress convention; siblings
+  likewise landed straight in completed with their as-builts).

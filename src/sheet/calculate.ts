@@ -46,6 +46,9 @@ import {
  * keeps them mandatory, the organiser never types one. */
 export const CORRECTION_REASON = 'Corrected from scoresheet'
 export const REOPEN_REASON = 'Reopened for a scoresheet correction'
+/** A changed tape choice is a correction of the declared set, never a second
+ * declaration (the engine refuses those) — the reason the wire mandates. */
+export const TAPE_CORRECTION_REASON = 'Tape choice changed on the scoresheet'
 
 /** Per-pilot placeholder email for unknown pilots: deterministic (same name
  * → same address → idempotent re-runs) and unique (the projection's email
@@ -792,17 +795,48 @@ export async function runCalculate(
   // the capture step refetches only the event log it needs.
 
   // --- 6b · declare the provisional tape (F3J default) ---
+  // Declare-once: the engine refuses a second declaration
+  // (declareInstruments.alreadyDeclared) — every re-run reads the fold's
+  // declared set first and only declares when nothing is declared yet. A
+  // changed tape choice is a correction of the set
+  // (correct-instrument-declaration, retroactive by re-derivation), never a
+  // second declaration. The comparison is by (instrument, metric) pairs —
+  // the scale payload derives from the choice, so name equality implies it.
   // The declaration-time composition gate is loud: a non-composing tape is
   // refused by the engine here, never silently degraded. Verbatim surfacing.
   const instrumentFor = (metric: string): string | undefined =>
     metric === LANDING_METRIC ? sheet.tapeChoice : undefined
+  const wantedInstrument = toDeclaredInstrument(sheet.tapeChoice)
+  const declaredSet = fold.competition.declaredInstruments?.instruments ?? null
+  const sameSet =
+    declaredSet !== null &&
+    declaredSet.length === 1 &&
+    declaredSet[0].instrument === wantedInstrument.instrument &&
+    declaredSet[0].metric === wantedInstrument.metric
   try {
-    await api.declareInstruments({
-      competitionRef: competitionId,
-      instruments: [toDeclaredInstrument(sheet.tapeChoice)],
-      by: cdName,
-    })
-    emit({ step: 'instruments', label: `Declared ${sheet.tapeChoice}`, status: 'ok' })
+    if (declaredSet === null) {
+      await api.declareInstruments({
+        competitionRef: competitionId,
+        instruments: [wantedInstrument],
+        by: cdName,
+      })
+      emit({ step: 'instruments', label: `Declared ${sheet.tapeChoice}`, status: 'ok' })
+    } else if (sameSet) {
+      emit({ step: 'instruments', label: `Already declared ${sheet.tapeChoice}`, status: 'ok' })
+    } else {
+      await api.correctInstrumentDeclaration({
+        competitionRef: competitionId,
+        instruments: [wantedInstrument],
+        reason: TAPE_CORRECTION_REASON,
+        by: cdName,
+      })
+      emit({
+        step: 'instruments',
+        label: `Corrected the declared tape to ${sheet.tapeChoice}`,
+        status: 'ok',
+        detail: TAPE_CORRECTION_REASON,
+      })
+    }
   } catch (error) {
     emit({ step: 'instruments', label: `Declaring ${sheet.tapeChoice} was refused`, status: 'error', detail: errorDetail(error) })
     problems.push(errorDetail(error))

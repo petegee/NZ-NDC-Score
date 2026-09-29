@@ -641,6 +641,47 @@ describe('calculate — provisional tape path (F3J default, wire follow-up ss_ta
     expect(landings).toHaveLength(2)
     expect(landings.every((c) => c.instrument === 'Tape measure')).toBe(true)
   })
+
+  it('a second run adopts the already-declared set instead of re-declaring', async () => {
+    // The engine refuses a second declaration
+    // (declareInstruments.alreadyDeclared) — the re-run reads the fold's set
+    // first, so changing a landing mark and re-scoring stays green.
+    const fake = new FakeSoarscore()
+    const api = fake.api(radian)
+    const sheet = tapeSheet('100', '0')
+    const first = await runCalculate(api, sheet, noProgress)
+    expect(first.ok).toBe(true)
+    const prior: CalcPrior = {
+      competitionId: first.competitionId,
+      rowCompetitors: first.rowCompetitors,
+      names: first.names,
+    }
+
+    const second = await runCalculate(api, sheet, noProgress, prior)
+    expect(second.ok, second.steps.map((st) => `${st.status} ${st.label} ${st.detail ?? ''}`).join('\n')).toBe(true)
+    const comp = fake.competitionByName(RADIAN_CONTEST, '2026-09-19')!
+    expect(comp.declaredInstruments).toEqual([{ instrument: 'NZ F3J side', metric: 'landingDistance' }])
+    expect(second.steps.some((st) => st.label.includes('Already declared'))).toBe(true)
+  })
+
+  it('changing the tape choice corrects the declaration instead of re-declaring', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(radian)
+    const first = await runCalculate(api, tapeSheet('100', '0'), noProgress)
+    expect(first.ok).toBe(true)
+
+    const changed = sheetReducer(tapeSheet('8', '9'), { type: 'setTapeChoice', choice: 'Tape measure' })
+    const prior: CalcPrior = {
+      competitionId: first.competitionId,
+      rowCompetitors: first.rowCompetitors,
+      names: first.names,
+    }
+    const second = await runCalculate(api, changed, noProgress, prior)
+    expect(second.ok, second.steps.map((st) => `${st.status} ${st.label} ${st.detail ?? ''}`).join('\n')).toBe(true)
+    const comp = fake.competitionByName(RADIAN_CONTEST, '2026-09-19')!
+    expect(comp.declaredInstruments).toEqual([{ instrument: 'Tape measure', metric: 'landingDistance' }])
+    expect(second.steps.some((st) => st.label.includes('Corrected the declared tape'))).toBe(true)
+  })
 })
 
 describe('calculate — deselected compliance (the More list)', () => {
@@ -1213,6 +1254,7 @@ function seedDuplicate(fake: FakeSoarscore, id: string): void {
     competitors: [],
     entries: [],
     declaredInstruments: [],
+    instrumentsDeclared: false,
     capturedInstruments: [],
   })
 }
