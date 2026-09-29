@@ -1,7 +1,9 @@
 # SS Story — An entered 0 on landing scores zero landing points, not a 0 m landing
 
-**Status:** Blocked (Soarscore-side; raised on the NdcScore board 2026-09-23
-by user instruction, `ss_` prefix) · **Raised from:**
+**Status:** Completed (NdcScore-side placeholder landed 2026-09-29; the
+Soarscore definition fix shipped as commit 80d1545) · **Raised:** blocked
+on the NdcScore board 2026-09-23 by user instruction, `ss_` prefix ·
+**Raised from:**
 `kanban/completed/landing-zero-means-no-landing-points.md` user feedback
 
 ## What
@@ -90,3 +92,50 @@ placeholder ("0 = no landing points") on distance columns via the existing
 assumption-placeholder mechanism (`SheetPage.tsx`); deliberately **not**
 added now because it would contradict live engine behaviour until this
 change ships.
+
+## NdcScore-side as built (2026-09-29)
+
+The Soarscore fix has shipped (every corpus landing table leads with
+`{upTo: 0, points: 0}`; mirrored fixtures in `src/test/fixtures/` carry the
+new shape), so the hint no longer contradicts live behaviour — it landed as
+faint placeholder text only. No capture, parse or scoring change: an entered
+0 still posts verbatim, blank still stays "no result".
+
+- **Placeholder path check (the handover caution):** `landingDistance` is a
+  demanded observation with no `whenNotRecorded` assumption, so the existing
+  assumption-placeholder mechanism (`PenaltyCell`, `SheetPage.tsx:835` —
+  `placeholder={formatValue(assumption, col.unit)}`) never touches it: that
+  path only renders non-key assumed metrics inside the compliance drop list.
+  The hint is therefore wired on the key-column path instead — `SheetCell`
+  takes an optional `placeholder` prop, set from the grid derivation below.
+- **Structural derivation, no per-class branch (law 3):**
+  `exactZeroNoPointsMetrics(task)` (`src/grid/schema.ts`, cf.
+  `zeroFlightFlagMetrics`) walks the task's `score` + `scoreNormalised`
+  terms, recursing through conditional then/else branches (the landing award
+  sits inside the landing `when`), and collects every lookup `metricRef`
+  whose leading row is `{upTo: 0, points: 0}` (number|string coerced). It
+  surfaces as `TaskGridSchema.zeroHintMetrics` alongside `zeroFlightFlags`;
+  `SheetPage.tsx` renders `EXACT_ZERO_HINT` (`'0 = no landing points'`) on
+  exactly those columns. A `landingDistance` column with no such award shape
+  gets no hint — pinned by test, so the hint can never drift into a
+  metric-name rule.
+- **Files:** `src/grid/schema.ts` (derivation + `zeroHintMetrics` +
+  `EXACT_ZERO_HINT`), `src/sheet/SheetPage.tsx` (`SheetCell` placeholder
+  prop + wiring), `src/grid/zero-hint.test.ts` (new: fixture coverage over
+  all four mirrored landing-zero tasks incl. the 50-f3j fly-off, rate-only
+  F3K negative, non-zero-leading-row / points-awarding-zero-row /
+  string-form / else-branch synthetic cases),
+  `src/sheet/SheetPage.test.tsx` (F5J stub gains the conditional landing
+  lookup; two render tests: landing cells hinted / flight-time + start-height
+  bare, and the X5J landing column stays bare without an award shape),
+  `src/sheet/ResultsTable.test.tsx` (hand-built grid literal gains the new
+  required `zeroHintMetrics: []` field — mechanical).
+- **Verification:** full `npx vitest run` 225 passed / 6 skipped (baseline
+  before this change 216 passed — the 3 pre-existing `landedWithin75m`
+  drift failures are gone, fixed by the committed mirror
+  `3534e95` which this work builds on, untouched);
+  `npm run lint` clean; `npm run build` green.
+- **Lane:** blocked → completed directly (`kanban/in-progress/` holds only
+  `.gitkeep` — no standing NdcScore in-progress convention; the sibling
+  `landing-zero-means-no-landing-points.md` likewise landed straight in
+  completed with its as-built).

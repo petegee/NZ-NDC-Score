@@ -95,6 +95,28 @@ const f5jNdcDefinition = {
               },
             ],
           },
+          // The mirrored landing-zero award: exact 0 carves out zero points
+          // (conditional landing `when` + leading {upTo: 0, points: 0} row).
+          score: [
+            {
+              $kind: 'conditional',
+              when: {
+                $kind: 'comparison',
+                leftMetricRef: 'flightTime',
+                op: 'LessThan',
+                rightValue: { kind: 'Number', number: 600 },
+              },
+              then: {
+                $kind: 'lookup',
+                metricRef: 'landingDistance',
+                rows: [
+                  { upTo: 0, points: 0 },
+                  { upTo: 1, points: 50 },
+                  { points: 0 },
+                ],
+              },
+            },
+          ],
           normalise: {},
         },
       ],
@@ -921,6 +943,52 @@ describe('SheetPage', () => {
       await user.click(screen.getAllByRole('button', { name: 'More' })[0])
       expect(screen.queryByLabelText(/start height/i)).not.toBeInTheDocument()
       expect(screen.getByLabelText(/not landed within 75/i)).toBeInTheDocument()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('hints "0 = no landing points" on landing cells carved out for exact zero', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', stubFetch())
+    try {
+      render(<SheetPage base="http://api.test" />)
+      await waitFor(() => expect(screen.getByText(/Thermal Duration Gliders/)).toBeInTheDocument())
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f5j-ndc')
+      await waitFor(() => expect(screen.getAllByText(/Landing distance/i).length).toBeGreaterThan(0))
+
+      // Two rounds (the class maxRounds), ten pilots, one flight row: every
+      // landing cell carries the faint hint, and nothing else does — flight
+      // time and start height stay bare.
+      expect(
+        document.querySelectorAll('input.cell[placeholder="0 = no landing points"]'),
+      ).toHaveLength(20)
+      for (const input of document.querySelectorAll(
+        'tbody td:not(.pilot-col):not(.mfnz-col) input.cell',
+      )) {
+        const ph = input.getAttribute('placeholder')
+        expect(ph === null || ph === '0 = no landing points').toBe(true)
+      }
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('leaves the landing column bare when no award table carves out exact zero (X5J)', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', stubFetch())
+    try {
+      render(<SheetPage base="http://api.test" />)
+      await waitFor(() => expect(screen.getByText(/X5J Electric/)).toBeInTheDocument())
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-x5j')
+      await waitFor(() => expect(screen.getAllByText(/Glide Duration/).length).toBeGreaterThan(0))
+
+      // The X5J stub declares a landingDistance column but no score terms:
+      // the hint derives from the award shape, never the metric name.
+      expect(screen.getAllByText(/Landing distance/i).length).toBeGreaterThan(0)
+      expect(
+        document.querySelectorAll('input.cell[placeholder="0 = no landing points"]'),
+      ).toHaveLength(0)
     } finally {
       vi.unstubAllGlobals()
     }

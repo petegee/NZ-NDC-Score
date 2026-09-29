@@ -1019,10 +1019,13 @@ describe('calculate — stopwatch split (F3J task D, 600 s working time)', () =>
   })
 })
 
-// --- the flyaway ambiguity: a stopwatch reading at the working-time horn ---
-// (`f5j-flight-time-cap-at-959.md` — "cap at 9:59; a 600 sec flight results in
-// a zero landing". The engine cannot tell a flyaway from a horn-edge landing;
-// the sheet warns loudly, never refuses, never reinterprets.)
+// --- the flyaway reading: a stopwatch at the working-time horn ---
+// (`ss_f5j-flight-time-cap-at-959` — landed Soarscore-side: landing `when`
+// tests `flightTime < W`, flight rate caps a step below the horn. The client
+// split is unchanged — 10:00 still captures flight 600 with no overfly —
+// and the engine interprets exactly that as a flyaway: capped flight, no
+// landing points whatever landing is entered. The sheet says so loudly,
+// never refuses, never reinterprets.)
 
 function f5jSheet(): SheetState {
   const f5j = f5jFixture as unknown as ClassDefinition
@@ -1040,8 +1043,8 @@ function f5jSheet(): SheetState {
   return s
 }
 
-describe('calculate — stopwatch at the working-time horn (flyaway ambiguity)', () => {
-  it('a 10:00 reading warns loudly and still captures — the engine is the truth', async () => {
+describe('calculate — stopwatch at the working-time horn (flyaway reading)', () => {
+  it('a 10:00 reading warns loudly and still captures — the engine scores the flyaway', async () => {
     const fake = new FakeSoarscore()
     const api = fake.api(f3j)
     const sheet = f3jReading(f3jSheet(), 1, '10:00', '9.9')
@@ -1051,7 +1054,9 @@ describe('calculate — stopwatch at the working-time horn (flyaway ambiguity)',
     const warn = report.steps.find((s) => s.status === 'warn' && s.label.includes('Ana Silva'))
     expect(warn?.label).toMatch(/flight 1 — stopwatch 10:00 reaches the 10:00 working time with no overfly/)
     expect(warn?.detail).toMatch(/never landed/)
+    expect(warn?.detail).toMatch(/as a flyaway — capped flight time with no landing points, whatever landing is entered/)
     expect(warn?.detail).toMatch(/at most 9:59\.9/) // the flight metric's 0.1 s step
+    expect(warn?.detail).toMatch(/any landing entered scores nothing/)
     const flight = fake.competitionByName(F3J_CONTEST, '2026-09-20')!.entries[0].flights.get(1)!
     expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 600 })
     expect(flight.has('overflySeconds')).toBe(false)
@@ -1064,12 +1069,12 @@ describe('calculate — stopwatch at the working-time horn (flyaway ambiguity)',
     const report = await runCalculate(api, sheet, noProgress)
 
     expect(report.ok).toBe(true)
-    expect(
-      report.steps.some((s) => s.status === 'warn' && s.label.includes('10:00.4')),
-    ).toBe(true)
+    const warn = report.steps.find((s) => s.status === 'warn' && s.label.includes('10:00.4'))
+    expect(warn).toBeDefined()
+    expect(warn?.detail).toMatch(/as a flyaway/)
   })
 
-  it('a reading past the horn with a surviving overfly does not warn — the definition zeroes that landing', async () => {
+  it('a reading past the horn with a surviving overfly does not warn — the definition already zeroes that landing', async () => {
     const fake = new FakeSoarscore()
     const api = fake.api(f3j)
     const sheet = f3jReading(f3jSheet(), 1, '10:04', '9.9')
@@ -1101,7 +1106,9 @@ describe('calculate — stopwatch at the working-time horn (flyaway ambiguity)',
     expect(report.ok).toBe(true)
     const warn = report.steps.find((s) => s.status === 'warn' && s.label.includes('no overfly'))
     expect(warn?.label).toMatch(/stopwatch 10:00 reaches the 10:00 working time/)
+    expect(warn?.detail).toMatch(/as a flyaway — capped flight time with no landing points, whatever landing is entered/)
     expect(warn?.detail).toMatch(/at most 9:59;/)
+    expect(warn?.detail).toMatch(/any landing entered scores nothing/)
     const flight = fake.competitionByName(F5J_CONTEST, '2026-09-21')!.entries[0].flights.get(1)!
     expect(flight.get('flightTime')).toMatchObject({ kind: 'Number', number: 600 })
     expect(flight.has('overflySeconds')).toBe(false)

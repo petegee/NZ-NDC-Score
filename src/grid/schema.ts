@@ -53,6 +53,11 @@ export interface TaskGridSchema {
    * renders them inside the round's infraction drop list (per flight, as the
    * logical negation) instead of one column per flight — real estate. */
   zeroFlightFlags: string[]
+  /** Number metrics whose lookup table reserves exact 0 for zero points: the
+   * leading row is {upTo: 0, points: 0}. Their columns carry the faint
+   * "0 = no landing points" hint. Derived from the score terms, never
+   * class- or metric-name-branched. */
+  zeroHintMetrics: string[]
   /** The task declares the flightTime + overflySeconds pair: one stopwatch
    * column replaces the two inputs, split client-side at working time. */
   stopwatch?: StopwatchPair
@@ -184,6 +189,57 @@ export function zeroFlightFlagMetrics(validWhen: TaskDefinition['flightValidWhen
   return [...found]
 }
 
+/** The faint cell hint on exact-zero-carved award columns: an entered 0
+ * scores zero points there (the paper "beyond the tape" convention), while a
+ * blank cell stays "no result". Placeholder text only — the client posts the
+ * entered value verbatim and computes no scores (law 2). */
+export const EXACT_ZERO_HINT = '0 = no landing points'
+
+function asDouble(n: number | string | null | undefined): number | undefined {
+  if (n === null || n === undefined) return undefined
+  const v = typeof n === 'number' ? n : Number(n)
+  return Number.isFinite(v) ? v : undefined
+}
+
+/** Number metrics whose award table leads with an exact-zero zero-points
+ * row: collected from the task's score terms — every lookup on the metric
+ * whose first row is {upTo: 0, points: 0} — recursing through conditional
+ * then/else branches (the landing award sits inside the landing `when`).
+ * Pure derivation from the definition shape, no class or metric-name
+ * branches (cf. zeroFlightFlagMetrics). */
+export function exactZeroNoPointsMetrics(task: TaskDefinition): string[] {
+  const found = new Set<string>()
+  const walkTerm = (t: unknown): void => {
+    if (!t || typeof t !== 'object') return
+    const term = t as {
+      $kind?: string
+      metricRef?: string
+      rows?: { upTo?: number | string | null; points?: number | string }[]
+      then?: unknown
+      else?: unknown
+    }
+    if (
+      term.$kind === 'lookup' &&
+      typeof term.metricRef === 'string' &&
+      Array.isArray(term.rows) &&
+      term.rows.length > 0
+    ) {
+      const first = term.rows[0]
+      if (asDouble(first.upTo) === 0 && asDouble(first.points) === 0) {
+        found.add(term.metricRef)
+      }
+    }
+    if (term.$kind === 'conditional') {
+      walkTerm(term.then)
+      walkTerm(term.else)
+    }
+  }
+  for (const terms of [task.score, task.scoreNormalised]) {
+    if (Array.isArray(terms)) terms.forEach(walkTerm)
+  }
+  return [...found]
+}
+
 export function deriveTaskGrid(task: TaskDefinition): TaskGridSchema {
   return {
     taskRef: task.code,
@@ -192,6 +248,7 @@ export function deriveTaskGrid(task: TaskDefinition): TaskGridSchema {
     columns: deriveColumns(task),
     flightRows: deriveFlightRows(task),
     zeroFlightFlags: zeroFlightFlagMetrics(task.flightValidWhen),
+    zeroHintMetrics: exactZeroNoPointsMetrics(task),
     stopwatch: stopwatchPair(task),
   }
 }

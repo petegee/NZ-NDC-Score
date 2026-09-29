@@ -210,6 +210,7 @@ describe('ResultsTable — one row per competitor, one column pair per group-rou
           { sequence: 2, label: 'Flight 2', dynamic: false },
         ],
         zeroFlightFlags: [],
+        zeroHintMetrics: [],
       },
       perRoundParams: [],
     }

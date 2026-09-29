@@ -1,7 +1,8 @@
 # SS Story — F5J NDC: a very high launch scores a negative round score where the rules say zero
 
-**Status:** Blocked (Soarscore-side; raised on the NdcScore board 2026-09-25
-by user instruction, `ss_` prefix) · **Raised from:** tester report on the
+**Status:** Closed (no actionable NdcScore work — see disposition
+2026-09-29) · **Raised:** blocked on the NdcScore board 2026-09-25 by user
+instruction, `ss_` prefix · **Raised from:** tester report on the
 F5J NDC sheet (live-use feedback, item #5 — no NdcScore completed story).
 The tester's own question — *"i assume this is a soar-score bug?"* — is
 answered **yes** by this story. Same class family as
@@ -149,12 +150,20 @@ exists to prevent.
   sum (landing award rows, flight-time cap, and this floor); land them in
   one review so the seed drift guard runs once.
 
-## NdcScore's part once it lands
+## Disposition — closed with no client change (2026-09-29)
 
-Nothing structural. The client already renders the engine's number
-verbatim (`src/scoring/ScoreTable.tsx:6-8` — `Verbatim` is
-`String(value)`, no arithmetic, no formatting), so today a negative shows
-as `-160` in both the Group scores table and Provisional standings, and
-once the engine floors, the display corrects itself with no client change.
-A display-side clamp is **not** an option (NdcScore law 2: no score
-arithmetic in the client, ever).
+The SoarScore2 side this story was blocked against has shipped
+(`minimum-score-floor`, completed): the floor is the gated task-level datum
+this story proposed, and the mirrored 85c fixture already carries it
+(`"floorAtZero": true` in `src/test/fixtures/85c-nz-f5j-ndc.json`,
+committed). The story's own "NdcScore's part" section prescribes nothing
+structural — the client renders the engine's number verbatim
+(`src/scoring/ScoreTable.tsx`, `Verbatim` is `String(value)`), so the
+display corrects itself the moment the engine floors, and a display-side
+clamp is explicitly not an option (law 2: no score arithmetic in the
+client, ever). No independent actionable work found in this file beyond
+waiting on the engine: no code touched, no test added (there is nothing
+client-side to pin — the verbatim renderer is already covered). Closed
+blocked → completed; reopen if a floored engine number ever renders
+differently through the client than specified (with request/response
+evidence — never a client workaround).

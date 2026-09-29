@@ -1,7 +1,8 @@
 # SS Story — F5J: the flyaway reading — flight time caps at 9:59, a 600 s flight scores no landing
 
-**Status:** Blocked (Soarscore-side; raised on the NdcScore board 2026-09-23
-by user instruction, `ss_` prefix) · **Raised from:**
+**Status:** Completed · **Lane path:** blocked → completed 2026-09-29
+(NdcScore-side as-built below; no in-progress layover — the client change
+landed in one session) · **Raised from:**
 `kanban/completed/f5j-flight-time-cap-at-959.md` user feedback · Same
 ambiguity family as `ss_landing-zero-scores-no-landing-points.md` — the two
 may share one design answer about flyaway encoding.
@@ -117,12 +118,37 @@ scoring that must interpret it).
   the two define the flyaway encoding on the sheet (600 on the stopwatch,
   0 on the landing). One design answer should cover both.
 
-## NdcScore's part once it lands
+## NdcScore as-built (2026-09-29 — the reword the story's §"NdcScore's part" called for)
 
-Nothing structural. An engine/definition refusal (if reject is chosen)
-renders verbatim through the existing per-cell error path; scores flow from
-`GET /competition-result` untouched. The client's Calculate-time horn
-warning (landed with this story — `splitStopwatchCell` in
-`src/sheet/calculate.ts`) is the stopgap: once the definition interprets the
-flyaway, reword or retire it so the sheet never contradicts live engine
-behaviour.
+SoarScore2 shipped the reinterpretation (commit `80d1545`: landing `when`
+gains `flightTime < W`, rate caps 600→599 / 900→899; mirrored into
+`src/test/fixtures/` — 85c: cap 599 + `< 600` test + leading `{upTo: 0}`
+landing row; 50-f3j: caps 599/899 + both `< W` tests). The stopgap warning
+is retired and the landed truth encoded — uncommitted, owner reviews:
+
+1. `src/sheet/calculate.ts` (`splitStopwatchCell`) — the horn notice no
+   longer says the reading is "pending with Soarscore" and no longer claims
+   the engine "will score any landing entered". New text: a horn reading is
+   scored **as a flyaway — capped flight time with no landing points,
+   whatever landing is entered**; landed-inside-the-window advice is
+   unchanged (enter at most W − step, definition-derived per class:
+   9:59.9 F3J, 9:59 F5J); flyaway advice is now "leave the landing blank
+   (any landing entered scores nothing)". Trigger unchanged
+   (`total ≥ W ∧ split.overfly === 0`, definition-derived, law 3 clean);
+   no score arithmetic anywhere (law 2 clean). Doc comment and inline
+   comment updated to match.
+2. `src/grid/stopwatch.ts` — untouched: `10:00` still splits to flight 600
+   with overfly absent. Reinterpretation is server-side.
+3. `src/sheet/calculate.test.ts` ("stopwatch at the working-time horn
+   (flyaway reading)") — the five horn cases now assert the landed
+   semantics: 10:00 warns + captures flight 600 / no overfly (F3J and F5J,
+   each checking the flyaway wording and the class-declared step);
+   the 600.4 sub-second band warns as a flyaway; a surviving overfly
+   (10:04) and an inside-the-window reading (9:50) never warn.
+
+Verification: `calculate.test.ts` 49/49; full `vitest run` 216 passed,
+6 skipped (live); `eslint` clean. `tsc -b`/`vite build` currently fail on
+concurrent in-progress work (`zeroHintMetrics` in `src/grid/schema.ts` +
+`SheetPage.tsx` placeholder, a second worker's lane) — no error in either
+file this story touched. Sheet never contradicts live engine behaviour:
+600 → 599 flight + zero landing, whatever landing is entered.

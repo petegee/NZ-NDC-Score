@@ -165,9 +165,11 @@ export interface StopwatchNotice {
  * can. All other metrics are untouched.
  *
  * Returns a notice when the reading reaches the working-time horn with no
- * overfly surviving the declared rounding (the paper flyaway ambiguity:
- * "600 means the model never landed") — the organiser is told, the reading
- * is never refused or reinterpreted, and the engine still rules. */
+ * overfly surviving the declared rounding (the paper flyaway: "600 means
+ * the model never landed") — the organiser is told what the engine scores
+ * for it (a flyaway: capped flight, no landing points whatever landing is
+ * entered), the reading itself is never refused or changed client-side, and
+ * the engine still rules. */
 function splitStopwatchCell(
   rg: ReturnType<typeof sheetRoundGrids>[number],
   col: GridColumn,
@@ -217,17 +219,19 @@ function splitStopwatchCell(
     return undefined
   }
   const split = splitStopwatch(seconds, workingTime, col, overflyCol)
-  // The flyaway reading (`f5j-flight-time-cap-at-959`): a total that reaches
-  // the horn leaves no overfly once the declared rounding applies, so the
-  // engine sees a perfect in-window flight and cannot tell "never landed"
-  // from "landed exactly on the limit" — max flight time and landing points
-  // is a state the rulebook does not allow. Definition-derived (the pair,
-  // the working time, the flight metric's granularity), never class-branched.
+  // The flyaway reading (`ss_f5j-flight-time-cap-at-959`, landed
+  // Soarscore-side): a total that reaches the horn leaves no overfly once
+  // the declared rounding applies, so the client still captures a bare
+  // in-window flight — and the published definitions now interpret exactly
+  // that as "never landed" (the landing `when` tests `flightTime < working
+  // time`, the flight rate caps a step below the horn). Trigger stays
+  // definition-derived (the pair, the working time, the flight metric's
+  // granularity), never class-branched.
   const hornNotice =
     seconds >= workingTime && split.overfly === 0
       ? {
           label: `stopwatch ${formatClock(seconds)} reaches the ${formatClock(workingTime)} working time with no overfly`,
-          detail: `A stopwatch at the horn is paper shorthand for "the model never landed", but the engine cannot tell a flyaway from a landing exactly on the limit and will score any landing entered for this flight. If the model landed inside the window, enter the reading as at most ${formatClock(workingTime - (col.precision?.precision ?? 1))}; if it flew away, do not enter landing points (the flyaway reading is pending with Soarscore).`,
+          detail: `A stopwatch at the horn is paper shorthand for "the model never landed": the engine scores this reading as a flyaway — capped flight time with no landing points, whatever landing is entered for this flight. If the model landed inside the window, enter the reading as at most ${formatClock(workingTime - (col.precision?.precision ?? 1))}; if it flew away, leave the landing blank (any landing entered scores nothing).`,
         }
       : undefined
   const flightValue = measuredNumber(split.flight)

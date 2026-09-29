@@ -4,6 +4,7 @@ import type { ClassDefinitionSummary } from '../api/types'
 import { isNdcClass, latestPerClass } from './classes'
 import { formatValue } from '../grid/parse'
 import type { FlightRowSpec, GridColumn } from '../grid/schema'
+import { EXACT_ZERO_HINT } from '../grid/schema'
 import {
   initialSheet,
   loadSheet,
@@ -608,6 +609,9 @@ function SheetGrid({
                           text={state.cells[sheetCellKey(rg.roundOrdinal, pi + 1, spec.sequence, col.metric)] ?? ''}
                           enabled={enabled}
                           column={col}
+                          placeholder={
+                            rg.grid.zeroHintMetrics.includes(col.metric) ? EXACT_ZERO_HINT : undefined
+                          }
                           onText={(text) =>
                             dispatch({
                               type: 'setCell',
@@ -848,11 +852,13 @@ function SheetCell({
   text,
   enabled,
   column,
+  placeholder,
   onText,
 }: {
   text: string
   enabled: boolean
   column: GridColumn
+  placeholder?: string
   onText(text: string): void
 }) {
   if (column.kind === 'Flag') {
@@ -875,6 +881,7 @@ function SheetCell({
       inputMode="decimal"
       value={text}
       disabled={!enabled}
+      placeholder={placeholder}
       onChange={(e) => onText(e.target.value)}
     />
   )
