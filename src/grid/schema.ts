@@ -15,10 +15,12 @@ import { stopwatchPair, type StopwatchPair } from './stopwatch'
 export type NumberOrParam = number | { param: string }
 
 /** The wire name of the landing metric — the stable contract declarations bind
- * (`DeclaredInstrument.metric`). The column renders as plain "Landing" (no
- * unit): in tape mode the cell holds a mark reading, not a distance, and even
- * in tape-measure mode the reading is what was observed. Presentation-only;
- * never a class branch (law 3). */
+ * (`DeclaredInstrument.metric`). The definition-derived label is plain
+ * "Landing" (no unit): in tape mode the cell holds a mark reading, not a
+ * distance, and even in tape-measure mode the reading is what was observed.
+ * The rendered header follows the organiser's selected tape instead
+ * (`landingColumnLabel` in `sheet/tapes.ts`) — "Landing" stays the
+ * tape-agnostic fallback. Presentation-only; never a class branch (law 3). */
 export const LANDING_METRIC = 'landingDistance'
 
 export interface GridColumn {

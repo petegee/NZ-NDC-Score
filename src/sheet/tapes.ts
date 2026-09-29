@@ -54,6 +54,13 @@ export function tapeUnit(choice: TapeChoice): string {
   return TAPES[choice].unit
 }
 
+/** The landing column's header follows the selected tape (sheet state, never
+ * class): the F3J column holds mark readings, the tape-measure column holds
+ * metres. */
+export function landingColumnLabel(choice: TapeChoice): string {
+  return choice === MEASURE_INSTRUMENT ? 'Landing (m)' : 'Landing Tape'
+}
+
 /** Reading set = marks' readings + off-tape reading (when present). Rendered by the picker; capture enforces exact membership. */
 export function readingSetFor(choice: TapeChoice): number[] {
   const tape = TAPES[choice]
@@ -86,7 +93,7 @@ export function isValidTapeReading(choice: TapeChoice, value: number): boolean {
 export function tapeReadingError(choice: TapeChoice, value: number): string | null {
   if (isValidTapeReading(choice, value)) return null
   if (choice === F3J_INSTRUMENT) return `not on the ${choice} scale (${readingSetFor(choice).join(', ')})`
-  return `not on the ${choice} scale (0 or 0.01–15.00 to the cm)`
+  return `not on the ${choice} scale (0 or 0.01–15.00 m)`
 }
 
 /** Full scale payload for `POST /declare-instruments` — the declaration's `scale` field is just data the client posts. */

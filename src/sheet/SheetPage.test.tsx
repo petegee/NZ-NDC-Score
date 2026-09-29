@@ -913,7 +913,8 @@ describe('SheetPage', () => {
       await waitFor(() => expect(screen.getAllByText(/Flight time/).length).toBeGreaterThan(0))
       expect(screen.queryByText('Stopwatch')).not.toBeInTheDocument()
       expect(screen.queryByText('Overfly seconds')).not.toBeInTheDocument()
-      expect(screen.getAllByText('Landing').length).toBeGreaterThan(0)
+      // Fresh sheets default to the F3J tape: the landing header names it.
+      expect(screen.getAllByText('Landing Tape').length).toBeGreaterThan(0)
 
       // The compliance menu still offers the landed flag, but the overfly
       // metric is owned by the stopwatch split — no input for it.
@@ -955,7 +956,7 @@ describe('SheetPage', () => {
       render(<SheetPage base="http://api.test" />)
       await waitFor(() => expect(screen.getByText(/Thermal Duration Gliders/)).toBeInTheDocument())
       await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f5j-ndc')
-      await waitFor(() => expect(screen.getAllByText('Landing').length).toBeGreaterThan(0))
+      await waitFor(() => expect(screen.getAllByText('Landing Tape').length).toBeGreaterThan(0))
 
       // Fresh sheets default to F3J (owner call): landing cells are reading-set
       // pickers (readings only, never points) with off-tape 0 as one tap.
@@ -965,10 +966,13 @@ describe('SheetPage', () => {
       expect([...picker!.options].map((o) => o.value)).toContain('100')
       expect([...picker!.options].map((o) => o.value)).not.toContain('99.5')
 
-      // Tape-measure switches the column back to free text.
+      // Tape-measure switches the column back to free text — and the header
+      // names the unit it holds.
       await user.selectOptions(screen.getByLabelText(/Landing tape/), 'Tape measure')
       await waitFor(() => expect(document.querySelector('tbody td select.cell')).toBeNull())
       expect(document.querySelector('tbody td input.cell')).not.toBeNull()
+      expect(screen.getAllByText('Landing (m)').length).toBeGreaterThan(0)
+      expect(screen.queryByText('Landing Tape')).not.toBeInTheDocument()
     } finally {
       vi.unstubAllGlobals()
     }
@@ -984,7 +988,7 @@ describe('SheetPage', () => {
       // Free-text rendering for this assertion — switch to tape-measure
       // (fresh sheets default to the F3J picker per owner call).
       await user.selectOptions(screen.getByLabelText(/Landing tape/), 'Tape measure')
-      await waitFor(() => expect(screen.getAllByText('Landing').length).toBeGreaterThan(0))
+      await waitFor(() => expect(screen.getAllByText('Landing (m)').length).toBeGreaterThan(0))
 
       // Two rounds (the class maxRounds), ten pilots, one flight row: every
       // landing cell carries the faint hint, and nothing else does — flight
@@ -1015,7 +1019,7 @@ describe('SheetPage', () => {
 
       // The X5J stub declares a landingDistance column but no score terms:
       // the hint derives from the award shape, never the metric name.
-      expect(screen.getAllByText('Landing').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Landing (m)').length).toBeGreaterThan(0)
       expect(
         document.querySelectorAll('input.cell[placeholder="0 = no landing points"]'),
       ).toHaveLength(0)

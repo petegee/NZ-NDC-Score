@@ -280,6 +280,30 @@ button.reset {
   font-weight: 400;
 }
 
+/* Invalid user-entered data: the error bar names the problem, the cell
+   shows where it is — a red border on the exact textbox/cell the error
+   directly relates to (grid cells, flag buttons, penalty buttons and
+   contest/parameter header fields alike). */
+input.cell-error,
+select.cell-error,
+.flag-cell.cell-error {
+  border: 2px solid var(--danger);
+  background: var(--danger-bg);
+}
+
+input.cell-error:focus,
+select.cell-error:focus,
+.flag-cell.cell-error:focus {
+  outline: 2px solid var(--danger);
+  outline-offset: -2px;
+  background: var(--danger-bg);
+}
+
+input.cell-error::placeholder {
+  color: var(--danger-text);
+  opacity: 0.7;
+}
+
 /* Date field: forgiving text entry with a calendar picker alongside. */
 .date-field {
   display: flex;

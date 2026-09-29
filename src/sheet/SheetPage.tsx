@@ -5,12 +5,13 @@ import { isNdcClass, latestPerClass } from './classes'
 import { formatValue } from '../grid/parse'
 import type { FlightRowSpec, GridColumn } from '../grid/schema'
 import { EXACT_ZERO_HINT } from '../grid/schema'
-import { F3J_INSTRUMENT, LANDING_METRIC, TAPE_CHOICES, readingSetFor, type TapeChoice } from './tapes'
+import { F3J_INSTRUMENT, LANDING_METRIC, TAPE_CHOICES, landingColumnLabel, readingSetFor, type TapeChoice } from './tapes'
 import {
   initialSheet,
   loadSheet,
   paramsBoundAt,
   paramPlaceholder,
+  parseParamInput,
   parsePenaltyText,
   penaltyOptions,
   phaseRoundsKind,
@@ -206,6 +207,90 @@ export function SheetPage({ base }: { base: string }) {
       ? lastGood
       : null
 
+  // Error → cell highlighting: every error the calculate bar shows that
+  // directly relates to a textbox/cell also puts a red border on that exact
+  // control. Grid cells highlight from the report's cellErrors (sheet key →
+  // message); header/parameter/pilot/penalty problems highlight from the
+  // report's problem strings intersected with the current sheet text, so a
+  // highlight clears as soon as its field is fixed, and grid highlights
+  // persist alongside the error bar until the next Calculate.
+  const cellErrorMap = useMemo(
+    () => new Map((report?.cellErrors ?? []).map((c) => [c.key, c.error] as const)),
+    [report],
+  )
+  const problemSet = useMemo(() => new Set(report?.problems ?? []), [report])
+  const penaltyErrorKeys = useMemo(() => {
+    if (!report || !definition) return new Set<string>()
+    if (![...problemSet].some((p) => p.includes('is not an infraction'))) return new Set<string>()
+    const declared = new Set((definition.penalties ?? []).map((p) => p.infractionType))
+    const out = new Set<string>()
+    for (const [key, text] of Object.entries(state.cells)) {
+      if (!text.trim()) continue
+      let parts: ReturnType<typeof sheetCellParts>
+      try {
+        parts = sheetCellParts(key)
+      } catch {
+        continue
+      }
+      if (parts.metric !== 'penalties') continue
+      if (!grids.some((r) => r.roundOrdinal === parts.roundOrdinal)) continue
+      for (const t of parsePenaltyText(text)) {
+        if (!declared.has(t)) {
+          out.add(key)
+          break
+        }
+      }
+    }
+    return out
+  }, [report, definition, state.cells, problemSet, grids])
+  const duplicatePilotRows = useMemo(() => {
+    if (![...problemSet].some((p) => p.includes('duplicated'))) return new Set<number>()
+    const seen = new Map<string, number>()
+    const dup = new Set<number>()
+    state.pilots.forEach((row, idx) => {
+      const key = row.name.trim().toLowerCase()
+      if (!key) return
+      const first = seen.get(key)
+      if (first !== undefined) {
+        dup.add(first)
+        dup.add(idx)
+      } else {
+        seen.set(key, idx)
+      }
+    })
+    return dup
+  }, [problemSet, state.pilots])
+  const paramErrorNames = useMemo(() => {
+    if (!report || !definition) return new Set<string>()
+    const out = new Set<string>()
+    const seen = new Set<string>()
+    const allParams = definition
+      ? [
+          ...paramsBoundAt(definition, 'CompetitionSetup'),
+          ...paramsBoundAt(definition, 'BeforeFlying'),
+          ...grids.flatMap((g) => g.perRoundParams),
+        ]
+      : []
+    for (const p of allParams) {
+      if (seen.has(p.name)) continue
+      seen.add(p.name)
+      const parsed = parseParamInput(p, state.params[p.name] ?? '')
+      if (!parsed.ok && !parsed.blank && problemSet.has(parsed.error)) out.add(p.name)
+    }
+    return out
+  }, [report, definition, grids, state.params, problemSet])
+  const locationInvalid = problemSet.has('Location is required.') && !state.location.trim()
+  const cdInvalid =
+    problemSet.has('CD name is required (it signs the commands).') && !state.cdName.trim()
+  const dateRequiredInvalid = problemSet.has('Date is required.') && !state.date.trim()
+  const dateInvalid = dateRequiredInvalid || dateError !== null
+  const classInvalid =
+    problemSet.has('Pick the adopted class first.') && (!definition || !state.classContentHash)
+  const tapeInvalid = useMemo(
+    () => (report?.steps ?? []).some((s) => s.step === 'instruments' && s.status === 'error'),
+    [report],
+  )
+
   return (
     <main className="sheet-page">
       <header className="page-head">
@@ -225,6 +310,9 @@ export function SheetPage({ base }: { base: string }) {
             <span>Class</span>
             <select
               value={state.classContentHash ?? ''}
+              className={classInvalid ? 'cell-error' : undefined}
+              aria-invalid={classInvalid || undefined}
+              title={classInvalid ? 'Pick the adopted class first.' : undefined}
               onChange={(e) => void pickClass(e.target.value)}
             >
               <option value="">— pick the NDC class —</option>
@@ -240,6 +328,9 @@ export function SheetPage({ base }: { base: string }) {
             <span>Location</span>
             <input
               value={state.location}
+              className={locationInvalid ? 'cell-error' : undefined}
+              aria-invalid={locationInvalid || undefined}
+              title={locationInvalid ? 'Location is required.' : undefined}
               onChange={(e) => dispatch({ type: 'setField', field: 'location', value: e.target.value })}
             />
           </label>
@@ -250,6 +341,9 @@ export function SheetPage({ base }: { base: string }) {
                 type="text"
                 value={dateDraft ?? state.date}
                 placeholder="d/m/yyyy — e.g. 5/9/2026"
+                className={dateInvalid ? 'cell-error' : undefined}
+                aria-invalid={dateInvalid || undefined}
+                title={dateError ?? (dateRequiredInvalid ? 'Date is required.' : undefined)}
                 onChange={(e) => {
                   const text = e.target.value
                   setDateDraft(text)
@@ -311,6 +405,9 @@ export function SheetPage({ base }: { base: string }) {
             <span>CD (signs the commands)</span>
             <input
               value={state.cdName}
+              className={cdInvalid ? 'cell-error' : undefined}
+              aria-invalid={cdInvalid || undefined}
+              title={cdInvalid ? 'CD name is required (it signs the commands).' : undefined}
               onChange={(e) => dispatch({ type: 'setField', field: 'cdName', value: e.target.value })}
             />
           </label>
@@ -348,6 +445,8 @@ export function SheetPage({ base }: { base: string }) {
             <span>Landing tape</span>
             <select
               value={state.tapeChoice}
+              className={tapeInvalid ? 'cell-error' : undefined}
+              aria-invalid={tapeInvalid || undefined}
               onChange={(e) => dispatch({ type: 'setTapeChoice', choice: e.target.value as TapeChoice })}
             >
               {TAPE_CHOICES.map((t) => (
@@ -400,7 +499,10 @@ export function SheetPage({ base }: { base: string }) {
               <div className="field-grid">
                 {[...setupParams, ...beforeFlyingParams, ...grids.flatMap((g) => g.perRoundParams)]
                   .filter((p, i, all) => all.findIndex((q) => q.name === p.name) === i)
-                  .map((p) => (
+                  .map((p) => {
+                    const paramInvalid = paramErrorNames.has(p.name)
+                    const paramProblem = [...problemSet].find((m) => m.startsWith(`${p.name}:`) || m.startsWith(`${p.name} must be`) || m.startsWith(`${p.name} is required`))
+                    return (
                     <label key={p.name} className="span-2">
                       <span>
                         {p.name}
@@ -409,10 +511,14 @@ export function SheetPage({ base }: { base: string }) {
                       <input
                         value={state.params[p.name] ?? ''}
                         placeholder={paramPlaceholder(p)}
+                        className={paramInvalid ? 'cell-error' : undefined}
+                        aria-invalid={paramInvalid || undefined}
+                        title={paramInvalid ? paramProblem : undefined}
                         onChange={(e) => dispatch({ type: 'setParam', name: p.name, text: e.target.value })}
                       />
                     </label>
-                  ))}
+                    )
+                  })}
               </div>
             )}
           </section>
@@ -426,6 +532,9 @@ export function SheetPage({ base }: { base: string }) {
           rowCountPerRound={rowCountPerRound}
           penalties={penalties}
           dispatch={dispatch}
+          cellErrorMap={cellErrorMap}
+          penaltyErrorKeys={penaltyErrorKeys}
+          duplicatePilotRows={duplicatePilotRows}
         />
       )}
 
@@ -500,6 +609,7 @@ export function SheetPage({ base }: { base: string }) {
           cells={state.cells}
           rowCompetitors={results.rowCompetitors}
           rowCountPerRound={rowCountPerRound}
+          tapeChoice={state.tapeChoice}
         />
       )}
 
@@ -516,12 +626,18 @@ function SheetGrid({
   rowCountPerRound,
   penalties,
   dispatch,
+  cellErrorMap,
+  penaltyErrorKeys,
+  duplicatePilotRows,
 }: {
   state: SheetState
   grids: ReturnType<typeof sheetRoundGrids>
   rowCountPerRound: number[]
   penalties: PenaltyOption[]
   dispatch: (action: Parameters<typeof sheetReducer>[1]) => void
+  cellErrorMap: Map<string, string>
+  penaltyErrorKeys: Set<string>
+  duplicatePilotRows: Set<number>
 }) {
   const { tableRef, headRowRef } = useStickyHead<HTMLTableElement>()
   return (
@@ -564,8 +680,14 @@ function SheetGrid({
                         </span>
                       ) : null}
                       <small>
-                        {col.label}
-                        {col.unit ? ` (${col.unit})` : ''}
+                        {col.metric === LANDING_METRIC ? (
+                          landingColumnLabel(state.tapeChoice)
+                        ) : (
+                          <>
+                            {col.label}
+                            {col.unit ? ` (${col.unit})` : ''}
+                          </>
+                        )}
                       </small>
                     </th>
                   )),
@@ -588,9 +710,11 @@ function SheetGrid({
           <tr key={pi}>
             <td className="pilot-col">
               <input
-                className="cell"
+                className={`cell${duplicatePilotRows.has(pi) ? ' cell-error' : ''}`}
                 value={pilot.name}
                 placeholder="Pilot name"
+                aria-invalid={duplicatePilotRows.has(pi) || undefined}
+                title={duplicatePilotRows.has(pi) ? 'Pilot name duplicated.' : undefined}
                 onChange={(e) => dispatch({ type: 'setPilot', index: pi, patch: { name: e.target.value } })}
               />
             </td>
@@ -615,29 +739,35 @@ function SheetGrid({
                       }
                     const enabled =
                       (visibleFlightRows(rg.grid, rg.roundOrdinal, pi + 1, state.cells).length ?? 0) > rowIdx
-                    return keyCols.map((col, ci) => (
+                    return keyCols.map((col, ci) => {
+                      const cellKey = sheetCellKey(rg.roundOrdinal, pi + 1, spec.sequence, col.metric)
+                      const cellError = cellErrorMap.get(cellKey)
+                      return (
                       <td
                         key={`${rowIdx}:${col.metric}`}
                         className={roundCellClassName(i, rowIdx === 0 && ci === 0, rowIdx > 0 && ci === 0)}
                       >
                         <SheetCell
-                          text={state.cells[sheetCellKey(rg.roundOrdinal, pi + 1, spec.sequence, col.metric)] ?? ''}
+                          text={state.cells[cellKey] ?? ''}
                           enabled={enabled}
                           column={col}
                           tapeChoice={col.metric === LANDING_METRIC ? state.tapeChoice : undefined}
                           placeholder={
                             rg.grid.zeroHintMetrics.includes(col.metric) ? EXACT_ZERO_HINT : undefined
                           }
+                          invalid={cellError !== undefined}
+                          errorText={cellError}
                           onText={(text) =>
                             dispatch({
                               type: 'setCell',
-                              key: sheetCellKey(rg.roundOrdinal, pi + 1, spec.sequence, col.metric),
+                              key: cellKey,
                               text,
                             })
                           }
                         />
                       </td>
-                    ))
+                      )
+                    })
                   })}
                   {withComplianceColumn(rg, penalties) && (
                     <td className={roundCellClassName(i, keyCols.length === 0)}>
@@ -646,6 +776,16 @@ function SheetGrid({
                         options={penalties}
                         flightRows={visibleFlightRows(rg.grid, rg.roundOrdinal, pi + 1, state.cells)}
                         assumed={assumedColumns(rg)}
+                        invalid={
+                          cellErrorMap.has(sheetPenaltyKey(rg.roundOrdinal, pi + 1)) ||
+                          penaltyErrorKeys.has(sheetPenaltyKey(rg.roundOrdinal, pi + 1))
+                        }
+                        errorText={
+                          cellErrorMap.get(sheetPenaltyKey(rg.roundOrdinal, pi + 1)) ??
+                          (penaltyErrorKeys.has(sheetPenaltyKey(rg.roundOrdinal, pi + 1))
+                            ? 'Not an infraction declared by the adopted class.'
+                            : undefined)
+                        }
                         cellText={(sequence, metric) =>
                           state.cells[sheetCellKey(rg.roundOrdinal, pi + 1, sequence, metric)] ?? ''
                         }
@@ -757,6 +897,8 @@ function PenaltyCell({
   cellText,
   onText,
   onCell,
+  invalid,
+  errorText,
 }: {
   text: string
   options: PenaltyOption[]
@@ -765,6 +907,8 @@ function PenaltyCell({
   cellText(sequence: number, metric: string): string
   onText(text: string): void
   onCell(sequence: number, metric: string, text: string): void
+  invalid?: boolean
+  errorText?: string
 }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -810,8 +954,9 @@ function PenaltyCell({
         type="button"
         aria-expanded={open}
         aria-label="More"
-        className={`flag-cell ${count === 0 ? 'flag-blank' : ''}`}
-        title={options.map((o) => o.label).join('\n') || 'The adopted class declares no penalties'}
+        className={`flag-cell ${count === 0 ? 'flag-blank' : ''}${invalid ? ' cell-error' : ''}`}
+        title={errorText ?? (options.map((o) => o.label).join('\n') || 'The adopted class declares no penalties')}
+        aria-invalid={invalid || undefined}
         disabled={options.length === 0 && assumed.length === 0}
         onClick={() => setOpen(!open)}
       >
@@ -871,6 +1016,8 @@ function SheetCell({
   tapeChoice,
   placeholder,
   onText,
+  invalid,
+  errorText,
 }: {
   text: string
   enabled: boolean
@@ -878,15 +1025,19 @@ function SheetCell({
   tapeChoice?: TapeChoice
   placeholder?: string
   onText(text: string): void
+  invalid?: boolean
+  errorText?: string
 }) {
+  const errorClass = invalid ? ' cell-error' : ''
   if (column.kind === 'Flag') {
     const cycle = text === '' ? 'y' : text === 'y' ? 'n' : ''
     return (
       <button
         type="button"
-        className={`flag-cell ${text === '' ? 'flag-blank' : ''}`}
+        className={`flag-cell${text === '' ? ' flag-blank' : ''}${errorClass}`}
         disabled={!enabled}
-        title={column.label}
+        title={errorText ?? column.label}
+        aria-invalid={invalid || undefined}
         onClick={() => onText(cycle)}
       >
         {text === '' ? '–' : text}
@@ -901,9 +1052,11 @@ function SheetCell({
     const options = readingSetFor(F3J_INSTRUMENT)
     return (
       <select
-        className="cell"
+        className={`cell${errorClass}`}
         value={text}
         disabled={!enabled}
+        aria-invalid={invalid || undefined}
+        title={errorText}
         onChange={(e) => onText(e.target.value)}
       >
         <option value="">—</option>
@@ -917,11 +1070,13 @@ function SheetCell({
   }
   return (
     <input
-      className="cell"
+      className={`cell${errorClass}`}
       inputMode="decimal"
       value={text}
       disabled={!enabled}
       placeholder={placeholder ?? (column.metric === LANDING_METRIC ? '0 or 0.01–15.00' : undefined)}
+      aria-invalid={invalid || undefined}
+      title={errorText}
       onChange={(e) => onText(e.target.value)}
     />
   )

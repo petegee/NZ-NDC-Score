@@ -4,6 +4,7 @@ import type { GroupScore } from '../api/types'
 import { LANDING_METRIC } from '../grid/schema'
 import { sheetCellKey, type SheetRoundGrid } from './sheet'
 import { ResultsTable } from './ResultsTable'
+import { F3J_INSTRUMENT, MEASURE_INSTRUMENT } from './tapes'
 
 const names = new Map([
   ['c-1', 'Alice A'],
@@ -504,5 +505,34 @@ describe('ResultsTable — landing-points column (ss_per-term-landing-points)', 
     expect(alice[4]).toBe('')
     expect(alice[7]).toBe('')
     expect(alice[8]).toBe('300')
+  })
+
+  it.each([
+    { choice: F3J_INSTRUMENT, mark: 'Landing Tape' },
+    { choice: MEASURE_INSTRUMENT, mark: 'Landing (m)' },
+  ])('names the landing mark header for the selected tape ($mark)', ({ choice, mark }) => {
+    render(<ResultsTable {...landingProps} tapeChoice={choice} />)
+    const rows = screen.getAllByRole('row')
+    const subHeads = Array.from(rows[1].querySelectorAll('th')).map((th) => th.textContent ?? '')
+    // The mark header follows the tape; the points header never carries a
+    // unit (points, not a distance).
+    expect(subHeads).toEqual([
+      'Round',
+      'Time (s)',
+      mark,
+      'Landing pts',
+      'Time (s)',
+      mark,
+      'Landing pts',
+      'Raw score',
+    ])
+  })
+
+  it('falls back to the definition label when no tape choice is known', () => {
+    render(<ResultsTable {...landingProps} />)
+    const rows = screen.getAllByRole('row')
+    const subHeads = Array.from(rows[1].querySelectorAll('th')).map((th) => th.textContent ?? '')
+    expect(subHeads).toContain('Landing')
+    expect(subHeads).toContain('Landing pts')
   })
 })

@@ -3,6 +3,7 @@ import type { CompetitionScore, CompetitorTaskResult, GroupScore } from '../api/
 import type { GridColumn } from '../grid/schema'
 import { LANDING_METRIC } from '../grid/schema'
 import { Verbatim } from '../scoring/ScoreTable'
+import { landingColumnLabel, type TapeChoice } from './tapes'
 import { sheetCellKey, type SheetRoundGrid } from './sheet'
 import { useStickyHead } from './sticky-head'
 
@@ -40,6 +41,7 @@ export function ResultsTable({
   grids = [],
   cells = {},
   rowCompetitors = {},
+  tapeChoice,
   rowCountPerRound = [],
 }: {
   schedule: { roundOrdinal: number; taskRoundOrdinal: number; taskRef: string }[]
@@ -55,6 +57,9 @@ export function ResultsTable({
   rowCompetitors?: Record<string, string>
   /** Flight-row count per grids index (the entry sheet's header spans). */
   rowCountPerRound?: number[]
+  /** The organiser's selected tape — the landing header follows it ("Landing
+   * Tape" vs "Landing (m)"); absent leaves the definition label. */
+  tapeChoice?: TapeChoice
 }) {
   const { tableRef, headRowRef } = useStickyHead<HTMLTableElement>()
   const key = (r: { roundOrdinal: number; taskRoundOrdinal: number }) =>
@@ -123,6 +128,11 @@ export function ResultsTable({
    * the metric name alone — never a class branch (law 3). */
   const landingCols = (cols: GridColumn[]): number =>
     cols.filter((c) => c.metric === LANDING_METRIC).length
+
+  /** The rendered mark header: the landing column follows the selected tape,
+   * every other column the definition label. */
+  const markLabel = (col: GridColumn): string =>
+    col.metric === LANDING_METRIC && tapeChoice ? landingColumnLabel(tapeChoice) : col.label
 
   /** The sheet's cell text for one competitor's flight-row metric — empty when
    * the competitor has no sheet row (registered off-sheet) or the cell was
@@ -196,13 +206,20 @@ export function ResultsTable({
                           </span>
                         ) : null}
                         <small>
-                          {col.label}
-                          {col.unit ? ` (${col.unit})` : ''}
+                          {col.metric === LANDING_METRIC ? (
+                            markLabel(col)
+                          ) : (
+                            <>
+                              {col.label}
+                              {col.unit ? ` (${col.unit})` : ''}
+                            </>
+                          )}
                         </small>
                       </th>
                     )
                     // The landing-points column: the engine's award beside the
                     // echoed mark text, verbatim — never a client-mapped value.
+                    // Its header carries no unit (points, not a distance).
                     if (col.metric !== LANDING_METRIC) return [mark]
                     return [
                       mark,

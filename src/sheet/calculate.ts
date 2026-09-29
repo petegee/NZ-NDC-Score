@@ -388,11 +388,14 @@ export async function runCalculate(
   problems.push(...validation.problems)
   cellErrors.push(...validation.cellErrors)
   if (!validation.ok || validation.cellErrors.length > 0) {
+    // No detail here: problems render in the calculate bar's error-bar and
+    // cell errors render there (Round · row · flight · metric) plus as a red
+    // border on the exact cell — a raw `r1|p1|f1|metric` dump would duplicate
+    // both.
     emit({
       step: 'validate',
       label: 'The sheet has problems',
       status: 'error',
-      detail: [...validation.problems, ...validation.cellErrors.map((c) => `${c.key}: ${c.error}`)].join(' · '),
     })
     return report
   }

@@ -4,6 +4,7 @@ import type { CompetitionScore, GroupScore } from '../api/types'
 import type { CalcScheduleEntry } from './calculate'
 import type { SheetRoundGrid } from './sheet'
 import { ResultsTable } from './ResultsTable'
+import type { TapeChoice } from './tapes'
 
 /** Read-back only (law 2): every score here comes verbatim from
  * GET /task-round-result and GET /competition-result, in one table —
@@ -19,6 +20,7 @@ export function SheetResults({
   cells,
   rowCompetitors,
   rowCountPerRound,
+  tapeChoice,
   busy,
 }: {
   api: Api
@@ -32,6 +34,8 @@ export function SheetResults({
   cells?: Record<string, string>
   rowCompetitors?: Record<string, string>
   rowCountPerRound?: number[]
+  /** The organiser's selected tape, forwarded for the landing header. */
+  tapeChoice?: TapeChoice
   /** A run (manual or the debounced auto re-score) is in flight — the
    * scores on screen are being refreshed, not stale. */
   busy?: boolean
@@ -112,6 +116,7 @@ export function SheetResults({
           cells={cells}
           rowCompetitors={rowCompetitors}
           rowCountPerRound={rowCountPerRound}
+          tapeChoice={tapeChoice}
         />
       ) : !standingsError ? (
         <p className="hint">Loading scores…</p>
