@@ -1142,7 +1142,7 @@ describe('SheetPage', () => {
       // Fill the sheet completely — class, header fields and a pilot name.
       await user.type(screen.getByLabelText(/Location/), 'Somewhere')
       await user.type(screen.getByLabelText(/Date/), '2026-09-19')
-      await user.type(screen.getByLabelText(/CD \(signs the commands\)/), 'CD')
+      await user.type(screen.getByLabelText(/Contest Director/), 'CD')
       await user.type(screen.getAllByPlaceholderText('Pilot name')[0], 'Ana Silva')
 
       // A complete sheet still sends nothing on its own: the Calculate press
@@ -1215,7 +1215,7 @@ describe('SheetPage', () => {
 
       await user.type(screen.getByLabelText(/Location/), 'Somewhere')
       await user.type(screen.getByLabelText(/Date/), '2026-09-19')
-      await user.type(screen.getByLabelText(/CD \(signs the commands\)/), 'CD')
+      await user.type(screen.getByLabelText(/Contest Director/), 'CD')
       await user.type(screen.getAllByPlaceholderText('Pilot name')[0], 'Ana Silva')
       await user.type(
         document.querySelectorAll('tbody tr')[0].querySelectorAll('input.cell')[2],
@@ -1425,7 +1425,7 @@ describe('SheetPage', () => {
 
       await user.type(screen.getByLabelText(/Location/), 'Somewhere')
       await user.type(screen.getByLabelText(/Date/), '2026-09-19')
-      await user.type(screen.getByLabelText(/CD \(signs the commands\)/), 'CD')
+      await user.type(screen.getByLabelText(/Contest Director/), 'CD')
       await user.type(screen.getAllByPlaceholderText('Pilot name')[0], 'Ana Silva')
       await user.click(screen.getByRole('button', { name: 'Calculate' }))
       await waitFor(() => expect(postsTo('/draw-phase')).toHaveLength(1))
@@ -1560,7 +1560,7 @@ describe('SheetPage', () => {
 
         await user.type(screen.getByLabelText(/Location/), 'Somewhere')
         await user.type(screen.getByLabelText(/Date/), '5/9/2026')
-        await user.type(screen.getByLabelText(/CD \(signs the commands\)/), 'CD')
+        await user.type(screen.getByLabelText(/Contest Director/), 'CD')
         await user.type(screen.getAllByPlaceholderText('Pilot name')[0], 'Ana Silva')
         await user.click(screen.getByRole('button', { name: 'Calculate' }))
         await waitFor(() =>

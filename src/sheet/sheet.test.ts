@@ -11,6 +11,7 @@ import {
   parsePenaltyText,
   penaltyOptions,
   resolveMaxFlight,
+  resolveMaxLaunches,
   resolveWorkingTime,
   roundTimeHint,
   sheetCellKey,
@@ -344,13 +345,36 @@ describe('roundTimeHint — the faint per-round window + max flight on the grid 
     const grids = sheetRoundGrids(f3k, 4, { 0: 'B', 1: 'D', 2: 'G', 3: 'H' })
     expect(grids.map((g) => g.taskRef)).toEqual(['B', 'D', 'G', 'H'])
     // Only the B round consumes workingTime.B / maxFlight.B — the sheet text
-    // moves its hint alone; every other round keeps its own literals.
+    // moves its hint alone; every other round keeps its own literals. Only
+    // task D declares maxLaunches.
     expect(grids.map((g) => roundTimeHint(f3k, g, { 'workingTime.B': '420' }))).toEqual([
       '7 min window · 4 min max',
-      '10 min window · 5 min max',
+      '10 min window · 5 min max · 2 launches',
       '10 min window · 2 min max',
       '10 min window',
     ])
+  })
+
+  it('shows launches alone when there is no window and no cap (ALES 200: 1 launch)', () => {
+    const [rg] = sheetRoundGrids(ales, 1, {})
+    expect(rg.taskRef).toBe('D')
+    expect(roundTimeHint(ales, rg, {})).toBe('1 launch')
+  })
+
+  it('shows launches alone when the window is unresolvable (Radian roundDuration)', () => {
+    const [rg] = sheetRoundGrids(radian, 1, {})
+    expect(rg.taskRef).toBe('D')
+    expect(roundTimeHint(radian, rg, {})).toBe('1 launch')
+  })
+
+  it('resolveMaxLaunches passes literals through and rejects non-integers', () => {
+    const [rgD] = sheetRoundGrids(f3k, 4, { 0: 'B', 1: 'D', 2: 'G', 3: 'H' }).slice(1)
+    expect(resolveMaxLaunches(rgD.grid.timing, rgD.perRoundParams, {}, [], 0, 1)).toBe(2)
+    const [rgG] = sheetRoundGrids(f3k, 4, { 0: 'B', 1: 'D', 2: 'G', 3: 'H' }).slice(2)
+    expect(resolveMaxLaunches(rgG.grid.timing, rgG.perRoundParams, {}, [], 0, 3)).toBeUndefined()
+    expect(
+      resolveMaxLaunches({ kind: 'Fixed', workingTime: 600, maxLaunches: 2.5 } as never, [], {}, [], 0, 1),
+    ).toBeUndefined()
   })
 
   it('shows max only when the window is unresolvable but the cap resolves', () => {
@@ -362,7 +386,7 @@ describe('roundTimeHint — the faint per-round window + max flight on the grid 
     expect(roundTimeHint(f3k, noWindowParam, {})).toBe('4 min max')
   })
 
-  it('shows no hint when neither side resolves', () => {
+  it('shows no hint when no side resolves', () => {
     const [rg] = sheetRoundGrids(f3k, 1, { 0: 'B' })
     const noParams = { ...rg, perRoundParams: [] }
     expect(roundTimeHint(f3k, noParams, {})).toBeUndefined()

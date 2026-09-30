@@ -303,7 +303,7 @@ export function SheetPage({ base }: { base: string }) {
   }, [report, definition, grids, state.params, problemSet])
   const locationInvalid = problemSet.has('Location is required.') && !state.location.trim()
   const cdInvalid =
-    problemSet.has('CD name is required (it signs the commands).') && !state.cdName.trim()
+    problemSet.has('CD name is required.') && !state.cdName.trim()
   const dateRequiredInvalid = problemSet.has('Date is required.') && !state.date.trim()
   const dateInvalid = dateRequiredInvalid || dateError !== null
   const classInvalid =
@@ -424,12 +424,12 @@ export function SheetPage({ base }: { base: string }) {
             {dateError && <small className="field-error">{dateError}</small>}
           </label>
           <label className="span-2">
-            <span>CD (signs the commands)</span>
+            <span>Contest Director</span>
             <input
               value={state.cdName}
               className={cdInvalid ? 'cell-error' : undefined}
               aria-invalid={cdInvalid || undefined}
-              title={cdInvalid ? 'CD name is required (it signs the commands).' : undefined}
+              title={cdInvalid ? 'CD name is required.' : undefined}
               onChange={(e) => dispatch({ type: 'setField', field: 'cdName', value: e.target.value })}
             />
           </label>
@@ -449,7 +449,7 @@ export function SheetPage({ base }: { base: string }) {
               title={
                 results
                   ? 'The field is fixed once the sheet is scored'
-                  : 'Number of competitor rows — blank rows are fine, they stay blank until a name lands'
+                  : 'Number of competitor rows — blank rows are fine, they stay blank until a name is entered'
               }
               disabled={running || results !== null}
               onChange={(e) => setPilotsDraft(e.target.value)}

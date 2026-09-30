@@ -25,18 +25,18 @@ adopted class definition (law 3 — no class branches anywhere):
    visible where the numbers are typed — and "10 minute max" was the wrong
    label for it: 600 s on F3K task G is the working-time *window*, while the
    2 minutes that matters is the per-flight score cap (120 s). Each round
-   header now shows both, derived definition-driven (law 3):
-   `"10 min window · 2 min max"` — window from per-task
-   `TaskTiming.workingTime` (`src/api/schema.d.ts:2743-2748`, parsed by
-   `workingTimeView`, `src/grid/schema.ts:302-312`, resolved by
-   `resolveWorkingTime`, `src/sheet/sheet.ts`), max flight from the most
-   restrictive resolvable per-flight rate cap (`ScoreTermRateTerm` with
-   explicit `capScope: PerFlight` across `score` + `scoreNormalised`,
-   conditional-aware — `perFlightCaps`, `src/grid/schema.ts`; resolved by
-   `resolveMaxFlight`, `src/sheet/sheet.ts`). Both sides share one
-   `NumberOrParam` chain (literal / numeric string / `{ param }` via scoped
-   binding → unscoped → sheet text → declared default); either side
-   unresolvable renders nothing for that side. Rendered as one faint hint on
+   header now shows window, max flight and launch limit, all derived
+   definition-driven (law 3): `"10 min window · 2 min max"` for F3K task G,
+   `"10 min window · 5 min max · 2 launches"` for F3K task D. Sources:
+   window from per-task `TaskTiming.workingTime` (`src/api/schema.d.ts`,
+   parsed by `workingTimeView`, resolved by `resolveWorkingTime`); max flight
+   from the most restrictive resolvable per-flight rate cap (`ScoreTermRateTerm`
+   with explicit `capScope: PerFlight` across `score` + `scoreNormalised`,
+   conditional-aware — `perFlightCaps`); launch limit from declared
+   `TaskTiming.maxLaunches` (`resolveMaxLaunches`, positive integers only).
+   All three sides share one `NumberOrParam` chain (literal / numeric string /
+   `{ param }` via scoped binding → unscoped → sheet text → declared default);
+   a side that resolves to nothing usable renders nothing for that side. Rendered as one faint hint on
    the round header (`src/sheet/SheetPage.tsx` thead) — same pattern as the
    existing `targetLabel` and `EXACT_ZERO_HINT` hints
    (`single-sheet-calculate.md` WI-3). Tasks without a per-flight cap (F3K H
@@ -113,11 +113,13 @@ client-side.
   the rendering stays definition-driven.
 - Working-time hint formatting: window as `"10 min window"` (whole minutes;
   sub-minute remainders as `"M:SS window"` via `formatClock`), max flight as
-  `"2 min max"` / `"M:SS max"`; combined `"10 min window · 2 min max"`.
-  Either side unresolvable renders nothing for that side. Both literal
-  (`"workingTime": 600`, `"cap": 120`) and param
-  (`{"param": "workingTime.B"}`, `{"param": "maxFlight.B"}`) shapes occur on
-  the wire — see `85c-nz-f5j-ndc.json:202` and `85b-nz-f3k-ndc.json:196-198`.
+  `"2 min max"` / `"M:SS max"`, launch limit as `"1 launch"` / `"5 launches"`;
+  combined e.g. `"10 min window · 5 min max · 2 launches"`. A side that is
+  unresolvable renders nothing for that side (e.g. F3K H targets show window
+  only; ALES 200 shows `"1 launch"` alone). Both literal (`"workingTime": 600`,
+  `"cap": 120`, `"maxLaunches": 2`) and param (`{"param": "workingTime.B"}`,
+  `{"param": "maxFlight.B"}`) shapes occur on the wire — see
+  `85c-nz-f5j-ndc.json:202` and `85b-nz-f3k-ndc.json:196-198`.
 
 ## Done when
 
@@ -127,9 +129,10 @@ client-side.
   least 5 pilots to draw — the sheet names 1.`); the fieldTooSmall refusal
   (if reached) renders the friendly prefix with the verbatim `code: detail`
   retained underneath.
-- Every round shows its window and, where the task declares one, its max
-  flight on the grid round header (e.g. F3K task G: `10 min window · 2 min
-  max`; F3K task H targets: `10 min window` only; literal and `{ param }`
-  shapes verified against F3K + F5J fixtures); an unresolvable side shows
-  nothing for that side.
+- Every round shows its window and, where the task declares them, its max
+  flight and launch limit on the grid round header (e.g. F3K task G:
+  `10 min window · 2 min max`; F3K task D: `10 min window · 5 min max ·
+  2 launches`; F3K task H targets: `10 min window` only; literal and
+  `{ param }` shapes verified against F3K + F5J fixtures); an unresolvable
+  side shows nothing for that side.
 - No per-class branches (law 3).

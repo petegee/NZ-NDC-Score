@@ -7,6 +7,7 @@ import {
   defaultRounds,
   deriveFlightRows,
   deriveTaskGrid,
+  formatLaunchesHint,
   formatMaxFlightHint,
   formatWindowHint,
   perFlightCaps,
@@ -187,6 +188,12 @@ describe('formatWindowHint / formatMaxFlightHint — the round header time hint'
     expect(formatMaxFlightHint(599)).toBe('9:59 max')
     expect(formatMaxFlightHint(599.9)).toBe('9:59.9 max')
     expect(formatMaxFlightHint(3661)).toBe('1:01:01 max')
+  })
+
+  it('renders the launch limit singular/plural ("1 launch" / "5 launches")', () => {
+    expect(formatLaunchesHint(1)).toBe('1 launch')
+    expect(formatLaunchesHint(2)).toBe('2 launches')
+    expect(formatLaunchesHint(5)).toBe('5 launches')
   })
 })
 

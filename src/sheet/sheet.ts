@@ -10,6 +10,7 @@ import { parseCellText } from '../grid/parse'
 import { DEFAULT_TAPE, LANDING_METRIC, isValidTapeReading, tapeReadingError, type TapeChoice } from './tapes'
 import {
   defaultRounds,
+  formatLaunchesHint,
   formatMaxFlightHint,
   formatWindowHint,
   perFlightCaps,
@@ -344,17 +345,41 @@ export function resolveMaxFlight(
   return best
 }
 
+/** The task's effective launch limit — the declared `maxLaunches`, resolved
+ * through the same `NumberOrParam` chain (literals on the wire today, `{ param }`
+ * tomorrow). Only positive integers count; anything else yields undefined
+ * (no hint, engine still rules). */
+export function resolveMaxLaunches(
+  timing: TaskTiming,
+  params: Parameter[],
+  paramText: Record<string, string>,
+  bindings: ParameterBindingFold[],
+  phaseOrdinal: number,
+  roundOrdinal: number,
+): number | undefined {
+  const n = resolveNumberOrParam(
+    timing.maxLaunches as unknown,
+    params,
+    paramText,
+    bindings,
+    phaseOrdinal,
+    roundOrdinal,
+  )
+  return n !== undefined && Number.isInteger(n) && n > 0 ? n : undefined
+}
+
 /** The round header's faint time hint — the working-time window plus the
- * max flight, e.g. "10 min window · 2 min max" (F3K task G: 600 s window,
- * 120 s per-flight rate cap). The window is the same value the stopwatch
+ * max flight plus the launch limit, e.g. "10 min window · 2 min max" (F3K
+ * task G: 600 s window, 120 s per-flight rate cap) or "10 min window ·
+ * 5 min max · 2 launches" (F3K task D). The window is the same value the stopwatch
  * split divides at; the max is the most restrictive resolvable per-flight
- * rate cap. Each side resolves from the round's per-round params plus the
- * sheet's parameter text and declared defaults only — the competition
- * fold's parameter bindings are unavailable on the static grid before
- * Calculate, so scoped/unscoped bindings are skipped here (documented
- * choice). A side that resolves to nothing usable shows nothing; neither
- * side resolvable yields no hint. Display only (law 2); derived, never
- * class-branched (law 3). */
+ * rate cap; the launch limit is the declared `maxLaunches`. Each side
+ * resolves from the round's per-round params plus the sheet's parameter
+ * text and declared defaults only — the competition fold's parameter
+ * bindings are unavailable on the static grid before Calculate, so
+ * scoped/unscoped bindings are skipped here (documented choice). A side
+ * that resolves to nothing usable shows nothing; no side resolvable yields
+ * no hint. Display only (law 2); derived, never class-branched (law 3). */
 export function roundTimeHint(
   definition: ClassDefinition,
   rg: SheetRoundGrid,
@@ -362,9 +387,11 @@ export function roundTimeHint(
 ): string | undefined {
   const window = resolveWorkingTime(rg.grid.timing, rg.perRoundParams, paramText, [], 0, rg.roundOrdinal)
   const max = resolveMaxFlight(rg.taskRef, definition, rg.perRoundParams, paramText, [], 0, rg.roundOrdinal)
+  const launches = resolveMaxLaunches(rg.grid.timing, rg.perRoundParams, paramText, [], 0, rg.roundOrdinal)
   const parts: string[] = []
   if (window !== undefined) parts.push(formatWindowHint(window))
   if (max !== undefined) parts.push(formatMaxFlightHint(max))
+  if (launches !== undefined) parts.push(formatLaunchesHint(launches))
   return parts.length > 0 ? parts.join(' · ') : undefined
 }
 
@@ -553,7 +580,7 @@ export function validateSheet(state: SheetState): SheetValidation {
   if (!definition || !state.classContentHash) problems.push('Pick the adopted class first.')
   if (!state.location.trim()) problems.push('Location is required.')
   if (!state.date.trim()) problems.push('Date is required.')
-  if (!state.cdName.trim()) problems.push('CD name is required (it signs the commands).')
+  if (!state.cdName.trim()) problems.push('CD name is required.')
 
   const pilots = state.pilots.map((p, i) => ({ row: p, index: i })).filter((p) => p.row.name.trim())
   if (pilots.length === 0) problems.push('At least one pilot row needs a name.')

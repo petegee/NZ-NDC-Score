@@ -323,6 +323,12 @@ export function formatWindowHint(seconds: number): string {
   return `${formatClock(seconds)} window`
 }
 
+/** Organiser-language launch-limit hint — "1 launch" / "5 launches".
+ * Same display-only, derivation-only contract as formatWindowHint. */
+export function formatLaunchesHint(count: number): string {
+  return count === 1 ? '1 launch' : `${count} launches`
+}
+
 /** Organiser-language max-flight hint — the per-flight score cap, whole
  * minutes as "2 min max", remainders via formatClock ("1:30 max"). Same
  * display-only, derivation-only contract as formatWindowHint. */
