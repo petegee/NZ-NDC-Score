@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ClassDefinition, ParameterBindingFold } from '../api/types'
 import alesFixture from '../test/fixtures/81-nz-m-ndc.json'
 import fixture from '../test/fixtures/85b-nz-f3k-ndc.json'
+import f5jFixture from '../test/fixtures/85c-nz-f5j-ndc.json'
 import radianFixture from '../test/fixtures/85-nz-p-radian.json'
 import {
   initialSheet,
@@ -10,6 +11,7 @@ import {
   parsePenaltyText,
   penaltyOptions,
   resolveWorkingTime,
+  roundWorkingTimeHint,
   sheetCellKey,
   sheetCellParts,
   sheetPenaltyKey,
@@ -23,6 +25,7 @@ import {
 const f3k = fixture as unknown as ClassDefinition
 const ales = alesFixture as unknown as ClassDefinition
 const radian = radianFixture as unknown as ClassDefinition
+const f5j = f5jFixture as unknown as ClassDefinition
 
 function f3kSheet(): SheetState {
   return sheetReducer(initialSheet(), {
@@ -305,5 +308,42 @@ describe('resolveWorkingTime — what the stopwatch split divides at', () => {
     const noDefault = { name: 'workingTime.B', kind: 'Number', boundAt: 'PerRound' } as never
     expect(resolveWorkingTime(taskB.timing, [noDefault], {}, noBindings, 0, 1)).toBeUndefined()
     expect(resolveWorkingTime(taskB.timing, [], {}, noBindings, 0, 1)).toBeUndefined()
+  })
+})
+
+describe('roundWorkingTimeHint — the faint per-round time limit on the grid header', () => {
+  it('shows a literal working time (F5J task D: 600 → "10 minute max")', () => {
+    const [rg] = sheetRoundGrids(f5j, 1, {})
+    expect(rg.taskRef).toBe('D')
+    expect(roundWorkingTimeHint(rg, {})).toBe('10 minute max')
+  })
+
+  it('resolves a {param} working time through sheet text + default (F3K task B)', () => {
+    const [rg] = sheetRoundGrids(f3k, 1, { 0: 'B' })
+    expect(rg.taskRef).toBe('B')
+    expect(roundWorkingTimeHint(rg, {})).toBe('10 minute max')
+    expect(roundWorkingTimeHint(rg, { 'workingTime.B': '420' })).toBe('7 minute max')
+  })
+
+  it('each catalogue round shows its own task limit', () => {
+    const grids = sheetRoundGrids(f3k, 4, { 0: 'B', 1: 'D', 2: 'G', 3: 'H' })
+    expect(grids.map((g) => g.taskRef)).toEqual(['B', 'D', 'G', 'H'])
+    // Only the B round consumes workingTime.B — the sheet text moves its
+    // hint alone; every other round keeps its own literal 600.
+    expect(grids.map((g) => roundWorkingTimeHint(g, { 'workingTime.B': '420' }))).toEqual([
+      '7 minute max',
+      '10 minute max',
+      '10 minute max',
+      '10 minute max',
+    ])
+  })
+
+  it('an unresolvable working time shows no hint', () => {
+    const [rg] = sheetRoundGrids(f3k, 1, { 0: 'B' })
+    const noDefault = {
+      ...rg,
+      perRoundParams: [{ name: 'workingTime.B', kind: 'Number', boundAt: 'PerRound' } as never],
+    }
+    expect(roundWorkingTimeHint(noDefault, {})).toBeUndefined()
   })
 })

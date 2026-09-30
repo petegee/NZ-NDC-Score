@@ -10,6 +10,7 @@ import { parseCellText } from '../grid/parse'
 import { DEFAULT_TAPE, LANDING_METRIC, isValidTapeReading, tapeReadingError, type TapeChoice } from './tapes'
 import {
   defaultRounds,
+  formatWorkingTimeLimit,
   phaseSetupInfo,
   taskGridFor,
   workingTimeView,
@@ -275,6 +276,22 @@ export function resolveWorkingTime(
   if (!parsed.ok) return undefined
   const n = asNumber(parsed.value)
   return n !== undefined && Number.isFinite(n) && n > 0 ? n : undefined
+}
+
+/** The round header's faint working-time hint ("10 minute max") — the same
+ * value the stopwatch split divides at, resolved from the round's
+ * per-round params plus the sheet's parameter text and declared defaults
+ * only. The competition fold's parameter bindings are unavailable on the
+ * static grid before Calculate, so scoped/unscoped bindings are skipped
+ * here (documented choice): a working time that resolves to nothing usable
+ * shows no hint. Display only (law 2); derived, never class-branched
+ * (law 3). */
+export function roundWorkingTimeHint(
+  rg: SheetRoundGrid,
+  paramText: Record<string, string>,
+): string | undefined {
+  const seconds = resolveWorkingTime(rg.grid.timing, rg.perRoundParams, paramText, [], 0, rg.roundOrdinal)
+  return seconds === undefined ? undefined : formatWorkingTimeLimit(seconds)
 }
 
 export function sheetRoundGrids(

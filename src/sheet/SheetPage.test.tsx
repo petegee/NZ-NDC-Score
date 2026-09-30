@@ -1028,6 +1028,103 @@ describe('SheetPage', () => {
     }
   })
 
+  it('round headers show the task working time as a faint hint (literal shape)', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', stubFetch())
+    try {
+      render(<SheetPage base="http://api.test" />)
+      await waitFor(() => expect(screen.getByText(/Thermal Duration Gliders/)).toBeInTheDocument())
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f5j-ndc')
+      // Literal 600 on every round header — the stub class draws 2 rounds.
+      await waitFor(() => expect(screen.getAllByText('10 minute max')).toHaveLength(2))
+      for (const hint of screen.getAllByText('10 minute max')) {
+        expect(hint).toHaveClass('target-label')
+        expect(hint.closest('th')?.textContent).toMatch(/Round \d/)
+      }
+
+      // The F3K stub declares a literal 300: four rounds, one hint each.
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k-v2')
+      await waitFor(() => expect(screen.getAllByText('5 minute max')).toHaveLength(4))
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('a {param} working time resolves through the sheet parameter text', async () => {
+    const user = userEvent.setup()
+    const paramTimeDefinition = {
+      name: 'Param Time (NDC format)',
+      version: '1',
+      parameters: [
+        {
+          name: 'workingTime.B',
+          kind: 'Number',
+          unit: 's',
+          defaultValue: { kind: 'Number', number: 600 },
+          allowedValues: [
+            { kind: 'Number', number: 420 },
+            { kind: 'Number', number: 600 },
+          ],
+          boundAt: 'PerRound',
+        },
+      ],
+      penalties: [],
+      phases: [
+        {
+          type: 'Preliminary',
+          ordinal: 0,
+          rounds: { kind: 'FixedSequence', tasksPerRound: 1, requireDistinctTaskPerRound: false, maxRounds: 1 },
+          validity: {},
+          tasks: [
+            {
+              code: 'B',
+              name: 'Param task',
+              metrics: [
+                { name: 'flightTime', kind: 'Number', unit: 's', declaredBeforeLaunch: false },
+              ],
+              flights: { $kind: 'last' },
+              timing: { kind: 'Fixed', workingTime: { param: 'workingTime.B' } },
+              normalise: {},
+            },
+          ],
+        },
+      ],
+    }
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/class-definitions')) {
+        return jsonResponse([
+          {
+            id: 'p1',
+            contentHash: 'hash-param',
+            name: 'Param Time (NDC format)',
+            version: '1',
+            publishedAt: '2026-01-01T00:00:00Z',
+          },
+        ])
+      }
+      if (url.includes('/class-definition')) return jsonResponse(paramTimeDefinition)
+      return jsonResponse([])
+    })
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch)
+    try {
+      render(<SheetPage base="http://api.test" />)
+      await waitFor(() => expect(screen.getByText(/Param Time/)).toBeInTheDocument())
+      await user.selectOptions(screen.getByLabelText(/Class/), 'hash-param')
+      // Declared default 600 until the organiser types.
+      await waitFor(() => expect(screen.getByText('10 minute max')).toBeInTheDocument())
+
+      await user.click(screen.getByRole('button', { name: '+' }))
+      const paramInput = screen.getByLabelText(/workingTime\.B/)
+      await user.clear(paramInput)
+      await user.type(paramInput, '420')
+      await waitFor(() => expect(screen.getByText('7 minute max')).toBeInTheDocument())
+      expect(screen.queryByText('10 minute max')).not.toBeInTheDocument()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('Calculate is the commit gate: even a complete sheet never auto-runs before the first press; edits re-run after', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const user = userEvent.setup()
@@ -1496,6 +1593,82 @@ describe('SheetPage', () => {
         // The name is fabricated silently for the wire (calculate tests
         // assert the body) — the organiser never sees it.
         expect(screen.queryByText(/Soarscore calls this contest/)).not.toBeInTheDocument()
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    })
+  })
+
+  describe('too-small-field warning', () => {
+    // A one-round definition whose task B needs at least 5 pilots to draw.
+    const minFieldDefinition = {
+      name: 'Test Class (NDC format)',
+      version: '1',
+      parameters: [],
+      penalties: [],
+      phases: [
+        {
+          type: 'Preliminary',
+          ordinal: 0,
+          rounds: { kind: 'FixedSequence', tasksPerRound: 1, requireDistinctTaskPerRound: false, maxRounds: 1 },
+          validity: {},
+          tasks: [
+            {
+              code: 'B',
+              name: 'Test task',
+              metrics: [
+                { name: 'flightTime', kind: 'Number', unit: 's', declaredBeforeLaunch: false },
+              ],
+              flights: { $kind: 'last' },
+              timing: { kind: 'Fixed', workingTime: 300 },
+              group: { minPerGroup: 5 },
+              normalise: {},
+            },
+          ],
+        },
+      ],
+    }
+
+    function stubMinField(): typeof fetch {
+      return vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/class-definitions')) {
+          return jsonResponse([
+            {
+              id: 't1',
+              contentHash: 'hash-minfield',
+              name: 'Test Class (NDC format)',
+              version: '1',
+              publishedAt: '2026-01-01T00:00:00Z',
+            },
+          ])
+        }
+        if (url.includes('/class-definition')) return jsonResponse(minFieldDefinition)
+        return jsonResponse('ok')
+      }) as unknown as typeof fetch
+    }
+
+    it('warns pre-Calculate while the named field is short, and clears when it is met', async () => {
+      const user = userEvent.setup()
+      vi.stubGlobal('fetch', stubMinField())
+      try {
+        render(<SheetPage base="http://api.test" />)
+        await waitFor(() => expect(screen.getByText(/Test Class/)).toBeInTheDocument())
+        await user.selectOptions(screen.getByLabelText(/Class/), 'hash-minfield')
+
+        const banner = await screen.findByRole('note', { name: 'Field too small for the draw' })
+        expect(banner).toHaveTextContent(
+          'Round 1 (B) needs at least 5 pilots to draw — the sheet names 0. Add pilots or the draw will be refused.',
+        )
+
+        for (const [i, name] of ['A Pilot', 'B Pilot', 'C Pilot', 'D Pilot', 'E Pilot'].entries()) {
+          await user.type(screen.getAllByPlaceholderText('Pilot name')[i], name)
+        }
+        await waitFor(() =>
+          expect(
+            screen.queryByRole('note', { name: 'Field too small for the draw' }),
+          ).not.toBeInTheDocument(),
+        )
       } finally {
         vi.unstubAllGlobals()
       }

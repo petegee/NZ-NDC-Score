@@ -441,6 +441,25 @@ describe('calculate — refusals', () => {
     expect(step?.detail).toMatch(/drawn schedule/i)
   })
 
+  it('a drawPhase.fieldTooSmall refusal keeps the verbatim under a friendly prefix', async () => {
+    const fake = new FakeSoarscore()
+    const api = fake.api(f3k)
+    const refusal =
+      "Round 1 ('B'): the eligible field (1) is smaller than the class's minimum group size (5)."
+    const refusing = {
+      ...api,
+      drawPhase: async (): Promise<never> => {
+        throw new ApiError(409, 'drawPhase.fieldTooSmall', refusal, [])
+      },
+    }
+    const report = await runCalculate(refusing, baseSheet(), noProgress)
+
+    expect(report.ok).toBe(false)
+    const step = report.steps.find((s) => s.step === 'draw' && s.status === 'error')
+    expect(step?.label).toBe('Draw failed')
+    expect(step?.detail).toBe(`Too few pilots for the draw — drawPhase.fieldTooSmall: ${refusal}`)
+  })
+
   it('a larger round count is absorbed — drawn rounds keep processing, the gap is named', async () => {
     const fake = new FakeSoarscore()
     const api = fake.api(f3k)

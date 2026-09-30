@@ -8,7 +8,7 @@ import type {
   TaskTiming,
   WorkingTimeKind,
 } from '../api/types'
-import { stopwatchPair, type StopwatchPair } from './stopwatch'
+import { formatClock, stopwatchPair, type StopwatchPair } from './stopwatch'
 
 /** The wire form of the domain's NumberOrParam: a literal decimal, or a
  * reference to a class parameter by name. */
@@ -309,4 +309,16 @@ export function workingTimeView(
     return { kind: timing.kind, param: wt.param }
   }
   return { kind: timing.kind }
+}
+
+/** Organiser-language working-time hint for a round header — whole minutes
+ * as "{m} minute max" ("10 minute max"), sub-minute remainders as "M:SS
+ * max" via formatClock ("1:30 max"). Display only: the client posts entered
+ * values verbatim and computes no scores (law 2); derived from the resolved
+ * seconds, never class-branched (law 3). */
+export function formatWorkingTimeLimit(seconds: number): string {
+  if (Number.isFinite(seconds) && seconds > 0 && seconds % 60 === 0) {
+    return `${seconds / 60} minute max`
+  }
+  return `${formatClock(seconds)} max`
 }

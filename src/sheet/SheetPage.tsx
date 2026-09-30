@@ -16,6 +16,7 @@ import {
   penaltyOptions,
   phaseRoundsKind,
   phaseTasks,
+  roundWorkingTimeHint,
   saveSheet,
   sheetCellKey,
   sheetCellParts,
@@ -27,6 +28,7 @@ import {
   type SheetState,
 } from './sheet'
 import { runCalculate, type CalcProgress, type CalcReport } from './calculate'
+import { fieldSizeWarnings, formatFieldSizeWarning } from './fieldSize'
 import { parseDateText } from './dateText'
 import { useStickyHead } from './sticky-head'
 import { SheetResults } from './results'
@@ -113,6 +115,18 @@ export function SheetPage({ base }: { base: string }) {
   const perRoundParamNames = [
     ...new Set(grids.flatMap((rg) => rg.perRoundParams.map((p) => p.name))),
   ]
+  // Friendly too-small-field warning (WI-1): each visible round's task
+  // minimum against the named sheet rows, pre-Calculate. No fold bindings
+  // exist before the first run, so `{ param }` minima resolve from the
+  // sheet's parameter text → declared defaults; unresolvable rounds warn
+  // nothing and the engine error still rules.
+  const fieldWarnings = useMemo(
+    () =>
+      definition
+        ? fieldSizeWarnings(definition, state.rounds, state.taskPicks, state.pilots, state.params)
+        : [],
+    [definition, state.rounds, state.taskPicks, state.pilots, state.params],
+  )
 
   // The contest has no name field (bug #4): calculate.ts fabricates the name
   // Soarscore sees from the date, location and adopted class — the organiser
@@ -539,6 +553,13 @@ export function SheetPage({ base }: { base: string }) {
       )}
 
       <section className="calculate-bar">
+        {fieldWarnings.length > 0 && (
+          <div className="warning-bar" role="note" aria-label="Field too small for the draw">
+            {fieldWarnings.map((w) => (
+              <p key={w.roundOrdinal}>{formatFieldSizeWarning(w)}</p>
+            ))}
+          </div>
+        )}
         <button type="button" className="calculate" disabled={running} onClick={() => void calculate()}>
           {running ? 'Calculating…' : 'Calculate'}
         </button>
@@ -650,17 +671,26 @@ function SheetGrid({
           <th rowSpan={2} className="mfnz-col">
             MFNZ #
           </th>
-          {grids.map((rg, i) => (
-            <th
-              key={rg.roundOrdinal}
-              colSpan={
-                rowCountPerRound[i] * shownColumns(rg).length + (withComplianceColumn(rg, penalties) ? 1 : 0)
-              }
-              className={roundCellClassName(i, true)}
-            >
-              Round {rg.roundOrdinal} · <code>{rg.taskRef}</code> {rg.grid.taskName}
-            </th>
-          ))}
+          {grids.map((rg, i) => {
+            const timeHint = roundWorkingTimeHint(rg, state.params)
+            return (
+              <th
+                key={rg.roundOrdinal}
+                colSpan={
+                  rowCountPerRound[i] * shownColumns(rg).length + (withComplianceColumn(rg, penalties) ? 1 : 0)
+                }
+                className={roundCellClassName(i, true)}
+              >
+                Round {rg.roundOrdinal} · <code>{rg.taskRef}</code> {rg.grid.taskName}
+                {timeHint ? (
+                  <>
+                    <br />
+                    <span className="target-label">{timeHint}</span>
+                  </>
+                ) : null}
+              </th>
+            )
+          })}
         </tr>
         <tr>
           {grids.map((rg, i) => {

@@ -25,6 +25,7 @@ import {
 } from './capture'
 import { runOne } from './queue'
 import { rebuildFromEventLog } from './rebuild'
+import { TOO_FEW_PILOTS_PREFIX } from './fieldSize'
 import {
   parseParamInput,
   paramsBoundAt,
@@ -113,6 +114,17 @@ function errorDetail(error: unknown): string {
   return error instanceof ApiError
     ? `${error.code}: ${error.detail}`
     : String((error as Error)?.message ?? error)
+}
+
+/** The draw step's failure detail: a `drawPhase.fieldTooSmall` refusal gets
+ * the organiser-language prefix while the engine `code: detail` stays
+ * visible underneath (law 1 — ProblemDetails is the truth); every other
+ * failure renders verbatim. */
+export function drawFailureDetail(error: unknown): string {
+  const verbatim = errorDetail(error)
+  return errorCode(error) === 'drawPhase.fieldTooSmall'
+    ? `${TOO_FEW_PILOTS_PREFIX}${verbatim}`
+    : verbatim
 }
 
 /** Capture-side identity comparison: is the sheet text the same measurement
@@ -737,7 +749,7 @@ export async function runCalculate(
       emit({ step: 'draw', label: `Adopting the drawn schedule (${phase.rounds.length} round(s))`, status: 'ok' })
     }
   } catch (error) {
-    emit({ step: 'draw', label: 'Draw failed', status: 'error', detail: errorDetail(error) })
+    emit({ step: 'draw', label: 'Draw failed', status: 'error', detail: drawFailureDetail(error) })
     return report
   }
 

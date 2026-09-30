@@ -7,6 +7,7 @@ import {
   defaultRounds,
   deriveFlightRows,
   deriveTaskGrid,
+  formatWorkingTimeLimit,
   phaseSetupInfo,
   taskByRef,
   workingTimeView,
@@ -166,5 +167,21 @@ describe('F5J NDC fixture (recordedness gate)', () => {
   it('declares the flightTime + overflySeconds stopwatch pair', () => {
     const grid = deriveTaskGrid(taskByRef(f5j, 'D')!)
     expect(grid.stopwatch).toEqual({ flightMetric: 'flightTime', overflyMetric: 'overflySeconds' })
+  })
+})
+
+describe('formatWorkingTimeLimit — the round header time hint', () => {
+  it('renders whole minutes as "{m} minute max"', () => {
+    expect(formatWorkingTimeLimit(120)).toBe('2 minute max')
+    expect(formatWorkingTimeLimit(600)).toBe('10 minute max')
+    expect(formatWorkingTimeLimit(60)).toBe('1 minute max')
+    expect(formatWorkingTimeLimit(420)).toBe('7 minute max')
+  })
+
+  it('renders sub-minute remainders as "M:SS max" via formatClock', () => {
+    expect(formatWorkingTimeLimit(90)).toBe('1:30 max')
+    expect(formatWorkingTimeLimit(599)).toBe('9:59 max')
+    expect(formatWorkingTimeLimit(599.9)).toBe('9:59.9 max')
+    expect(formatWorkingTimeLimit(3661)).toBe('1:01:01 max')
   })
 })
