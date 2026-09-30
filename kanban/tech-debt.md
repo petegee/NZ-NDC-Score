@@ -25,13 +25,16 @@ See CLAUDE.md house-keeping rule 5.
   shrink skips without annulling), and a late pilot's `competition.field.frozen`
   is absorbed the same way. Per-round **task** disagreement stays fatal
   deliberately — the cells' meanings would change, so Calculate refuses.
-- [ ] Soarscore capabilities this repo cannot build — parked as blocked
-  stories 2026-09-23 (user instruction): `ss_late-registration-after-draw.md` →
-  late registration onto an accepted draw (`competition.field.frozen`),
-  including re-forming groups (F3K min group size 5), and
-  `ss_extend-drawn-fold.md` → extending a drawn fold by more rounds (no
-  draw-extension verb). Until they land the sheet warns and keeps the rest of
-  the evening moving.
+- [x] ~~Soarscore capabilities this repo cannot build — parked as blocked
+  stories 2026-09-23 (user instruction)~~ — **abandoned 2026-09-30** (user
+  direction; see `deferred-decisions.md` §"Late registration and fold
+  extension are not NdcScore features"): NdcScore is retrospective entry, so
+  late registration (`competition.field.frozen`) and fold extension (no
+  draw-extension verb) are transcription mismatches, not awaited
+  capabilities. The sheet's warn-and-skip absorption stays as the guard; the
+  two `ss_` files are removed, and no Soarscore placeholder was raised
+  (pre-entry late registration already exists via reject → redraw; post-entry
+  refusal is deliberate).
 - [ ] Draw acceptance is implicit. Calculate draws and immediately accepts
   (`POST /accept-draw`) because capturing needs an accepted draw. A CD who
   wants to inspect or reject a draw before accepting has no UI

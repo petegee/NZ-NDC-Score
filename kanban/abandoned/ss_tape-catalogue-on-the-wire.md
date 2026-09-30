@@ -1,8 +1,11 @@
 # SS Story — Catalogue on the wire: the client never transcribes tapes
 
-**Status:** Blocked (Soarscore-side; raised on the NdcScore board 2026-09-29
-by owner direction, `ss_` prefix) · **Raised from:** the mandatory tape-choice
-UI (`kanban/backlog/mandatory-tape-choice.md`), which needs the picker source
+**Status:** Abandoned 2026-09-30 (owner direction — no longer needed at this
+stage; moved from `kanban/blocked/` via `git mv`, `abandoned/` lane created
+for this story) · **Was:** Blocked (Soarscore-side; raised on the NdcScore
+board 2026-09-29 by owner direction, `ss_` prefix) · **Raised from:** the
+mandatory tape-choice UI (`kanban/backlog/mandatory-tape-choice.md`), which
+needs the picker source
 
 ## What
 

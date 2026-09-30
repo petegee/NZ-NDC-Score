@@ -115,3 +115,29 @@ on night one. The wire support stays in the client (`record-entry-penalty`,
 `annul-entry` — `Reason`/`By` would be auto-filled like corrections) and a
 per-pilot affordance can be added once entries exist after a Calculate.
 Revisit when an organiser records a real penalty at an NDC.
+
+## Late registration and fold extension are not NdcScore features
+
+**Decided:** 2026-09-30 (with the user). The two blocked `ss_` stories raised
+2026-09-23 from `kanban/completed/add-pilots-and-rounds-after-calculate.md`
+feedback — `ss_late-registration-after-draw.md` (register onto an accepted
+draw, `competition.field.frozen`) and `ss_extend-drawn-fold.md` (draw extra
+rounds onto an accepted fold, `drawPhase.alreadyDrawn`) — are **abandoned**
+(files removed from `kanban/blocked/` in this commit, not moved to another
+lane: there is no abandoned lane, and completed stories are history).
+
+Reasoning: NdcScore is retrospective entry (CLAUDE.md — paper at the field,
+scored at home in the evening). Rounds and competitors are known up front
+from the paper record; a "late" pilot or an extra round after the first
+Calculate is a transcription mismatch against that record, not a live
+competition event. The client-side absorption that already landed stays as
+the guard: frozen-field and round-count mismatches warn loudly, skip the
+cells, and keep the rest of the run moving — but no Soarscore capability is
+awaited, and none is requested from this repo.
+
+Soarscore side: no placeholder story raised there either. Pre-entry late
+registration already exists via reject → register → redraw → accept
+(SoarScore2 `kanban/completed/draw-acceptance-redraw.md`); post-entry refusal
+(`rejectDraw.entriesExist`) is deliberate entry-identity safety, and fold
+extension has no live requester. A future CD asking for either raises it on
+the Soarscore board with rulebook grounding — not carried here.
