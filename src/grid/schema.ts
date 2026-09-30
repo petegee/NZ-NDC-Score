@@ -311,14 +311,55 @@ export function workingTimeView(
   return { kind: timing.kind }
 }
 
-/** Organiser-language working-time hint for a round header — whole minutes
- * as "{m} minute max" ("10 minute max"), sub-minute remainders as "M:SS
- * max" via formatClock ("1:30 max"). Display only: the client posts entered
- * values verbatim and computes no scores (law 2); derived from the resolved
- * seconds, never class-branched (law 3). */
-export function formatWorkingTimeLimit(seconds: number): string {
+/** Organiser-language window hint for a round header — whole minutes as
+ * "10 min window", sub-minute remainders as "1:30 window" via formatClock.
+ * Display only: the client posts entered values verbatim and computes no
+ * scores (law 2); derived from the resolved seconds, never class-branched
+ * (law 3). */
+export function formatWindowHint(seconds: number): string {
   if (Number.isFinite(seconds) && seconds > 0 && seconds % 60 === 0) {
-    return `${seconds / 60} minute max`
+    return `${seconds / 60} min window`
+  }
+  return `${formatClock(seconds)} window`
+}
+
+/** Organiser-language max-flight hint — the per-flight score cap, whole
+ * minutes as "2 min max", remainders via formatClock ("1:30 max"). Same
+ * display-only, derivation-only contract as formatWindowHint. */
+export function formatMaxFlightHint(seconds: number): string {
+  if (Number.isFinite(seconds) && seconds > 0 && seconds % 60 === 0) {
+    return `${seconds / 60} min max`
   }
   return `${formatClock(seconds)} max`
+}
+
+/** Raw per-flight score caps on a task: every rate term with an explicit
+ * `capScope: PerFlight` and a present cap, from `score` and
+ * `scoreNormalised`, recursing through conditional then/else branches (the
+ * same walk as exactZeroNoPointsMetrics). A missing `capScope` is not
+ * treated as per-flight — a PerTask cap is a score total, not a max flight.
+ * Pure derivation, no class or metric-name branches. */
+export function perFlightCaps(task: TaskDefinition): NumberOrParam[] {
+  const found: NumberOrParam[] = []
+  const walkTerm = (t: unknown): void => {
+    if (!t || typeof t !== 'object') return
+    const term = t as {
+      $kind?: string
+      cap?: NumberOrParam | null
+      capScope?: string
+      then?: unknown
+      else?: unknown
+    }
+    if (term.$kind === 'rate' && term.capScope === 'PerFlight' && term.cap !== undefined && term.cap !== null) {
+      found.push(term.cap as NumberOrParam)
+    }
+    if (term.$kind === 'conditional') {
+      walkTerm(term.then)
+      walkTerm(term.else)
+    }
+  }
+  for (const terms of [task.score, task.scoreNormalised]) {
+    if (Array.isArray(terms)) terms.forEach(walkTerm)
+  }
+  return found
 }

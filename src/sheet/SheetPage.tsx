@@ -16,7 +16,7 @@ import {
   penaltyOptions,
   phaseRoundsKind,
   phaseTasks,
-  roundWorkingTimeHint,
+  roundTimeHint,
   saveSheet,
   sheetCellKey,
   sheetCellParts,
@@ -53,6 +53,10 @@ export function SheetPage({ base }: { base: string }) {
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState<CalcProgress[]>([])
   const [report, setReport] = useState<CalcReport | null>(null)
+  // Whether Calculate has been pressed since the current class was chosen —
+  // the too-small-field banner stays hidden until then (a fresh class with
+  // no pilots yet is the normal starting point, not a warning).
+  const [hasAttempted, setHasAttempted] = useState(false)
   const [resultsSignal, setResultsSignal] = useState(0)
   const [paramsOpen, setParamsOpen] = useState(false)
   // The Pilots input is a decision, not a live resize: shrinking drops cells,
@@ -116,10 +120,12 @@ export function SheetPage({ base }: { base: string }) {
     ...new Set(grids.flatMap((rg) => rg.perRoundParams.map((p) => p.name))),
   ]
   // Friendly too-small-field warning (WI-1): each visible round's task
-  // minimum against the named sheet rows, pre-Calculate. No fold bindings
-  // exist before the first run, so `{ param }` minima resolve from the
-  // sheet's parameter text → declared defaults; unresolvable rounds warn
-  // nothing and the engine error still rules.
+  // minimum against the named sheet rows. Displayed only after the first
+  // Calculate press (see hasAttempted) — before that an empty sheet is the
+  // starting point, not a warning. No fold bindings exist before the first
+  // run, so `{ param }` minima resolve from the sheet's parameter text →
+  // declared defaults; unresolvable rounds warn nothing and the engine
+  // error still rules.
   const fieldWarnings = useMemo(
     () =>
       definition
@@ -148,6 +154,7 @@ export function SheetPage({ base }: { base: string }) {
 
   const pickClass = async (hash: string) => {
     setLoadError(null)
+    setHasAttempted(false)
     try {
       const res = await api.getClassDefinition(hash)
       dispatch({ type: 'classChosen', contentHash: hash, definition: res.value })
@@ -157,6 +164,7 @@ export function SheetPage({ base }: { base: string }) {
   }
 
   const calculate = async () => {
+    setHasAttempted(true)
     if (runningRef.current) {
       dirtyRef.current = true
       return
@@ -553,7 +561,7 @@ export function SheetPage({ base }: { base: string }) {
       )}
 
       <section className="calculate-bar">
-        {fieldWarnings.length > 0 && (
+        {hasAttempted && fieldWarnings.length > 0 && (
           <div className="warning-bar" role="note" aria-label="Field too small for the draw">
             {fieldWarnings.map((w) => (
               <p key={w.roundOrdinal}>{formatFieldSizeWarning(w)}</p>
@@ -572,6 +580,7 @@ export function SheetPage({ base }: { base: string }) {
               dispatch({ type: 'replace', state: initialSheet() })
               setReport(null)
               setProgress([])
+              setHasAttempted(false)
               setPilotsDraft(null)
               autoArmedRef.current = false
               setLastGood(null)
@@ -672,7 +681,9 @@ function SheetGrid({
             MFNZ #
           </th>
           {grids.map((rg, i) => {
-            const timeHint = roundWorkingTimeHint(rg, state.params)
+            const timeHint = state.classDefinition
+              ? roundTimeHint(state.classDefinition, rg, state.params)
+              : undefined
             return (
               <th
                 key={rg.roundOrdinal}

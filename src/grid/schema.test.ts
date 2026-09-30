@@ -7,7 +7,9 @@ import {
   defaultRounds,
   deriveFlightRows,
   deriveTaskGrid,
-  formatWorkingTimeLimit,
+  formatMaxFlightHint,
+  formatWindowHint,
+  perFlightCaps,
   phaseSetupInfo,
   taskByRef,
   workingTimeView,
@@ -170,18 +172,59 @@ describe('F5J NDC fixture (recordedness gate)', () => {
   })
 })
 
-describe('formatWorkingTimeLimit — the round header time hint', () => {
-  it('renders whole minutes as "{m} minute max"', () => {
-    expect(formatWorkingTimeLimit(120)).toBe('2 minute max')
-    expect(formatWorkingTimeLimit(600)).toBe('10 minute max')
-    expect(formatWorkingTimeLimit(60)).toBe('1 minute max')
-    expect(formatWorkingTimeLimit(420)).toBe('7 minute max')
+describe('formatWindowHint / formatMaxFlightHint — the round header time hint', () => {
+  it('renders whole minutes as "10 min window" / "2 min max"', () => {
+    expect(formatWindowHint(600)).toBe('10 min window')
+    expect(formatWindowHint(420)).toBe('7 min window')
+    expect(formatWindowHint(60)).toBe('1 min window')
+    expect(formatMaxFlightHint(120)).toBe('2 min max')
+    expect(formatMaxFlightHint(300)).toBe('5 min max')
+    expect(formatMaxFlightHint(60)).toBe('1 min max')
   })
 
-  it('renders sub-minute remainders as "M:SS max" via formatClock', () => {
-    expect(formatWorkingTimeLimit(90)).toBe('1:30 max')
-    expect(formatWorkingTimeLimit(599)).toBe('9:59 max')
-    expect(formatWorkingTimeLimit(599.9)).toBe('9:59.9 max')
-    expect(formatWorkingTimeLimit(3661)).toBe('1:01:01 max')
+  it('renders sub-minute remainders via formatClock', () => {
+    expect(formatWindowHint(90)).toBe('1:30 window')
+    expect(formatMaxFlightHint(599)).toBe('9:59 max')
+    expect(formatMaxFlightHint(599.9)).toBe('9:59.9 max')
+    expect(formatMaxFlightHint(3661)).toBe('1:01:01 max')
+  })
+})
+
+describe('perFlightCaps — the max-flight side of the hint', () => {
+  it('collects the literal per-flight rate cap (F3K task G → [120])', () => {
+    expect(perFlightCaps(taskByRef(f3k, 'G')!)).toEqual([120])
+  })
+
+  it('collects a {param} cap unresolved (F3K task B → workingTime-independent maxFlight.B)', () => {
+    expect(perFlightCaps(taskByRef(f3k, 'B')!)).toEqual([{ param: 'maxFlight.B' }])
+  })
+
+  it('yields nothing when the task scores with no per-flight cap (F3K task H targets)', () => {
+    expect(perFlightCaps(taskByRef(f3k, 'H')!)).toEqual([])
+  })
+
+  it('ignores caps without an explicit PerFlight scope', () => {
+    const task = {
+      code: 'X',
+      score: [{ $kind: 'rate', metricRef: 'flightTime', rate: 1, cap: 120 }],
+      scoreNormalised: [],
+    } as never
+    expect(perFlightCaps(task)).toEqual([])
+  })
+
+  it('recurses through conditional branches and both score lists', () => {
+    const task = {
+      code: 'X',
+      score: [
+        {
+          $kind: 'conditional',
+          when: { $kind: 'isRecorded', metricRef: 'flightTime' },
+          then: { $kind: 'rate', metricRef: 'flightTime', rate: 1, cap: 100, capScope: 'PerFlight' },
+          else: { $kind: 'rate', metricRef: 'flightTime', rate: 1, cap: 200, capScope: 'PerFlight' },
+        },
+      ],
+      scoreNormalised: [{ $kind: 'rate', metricRef: 'flightTime', rate: 1, cap: 150, capScope: 'PerFlight' }],
+    } as never
+    expect(perFlightCaps(task)).toEqual([100, 200, 150])
   })
 })

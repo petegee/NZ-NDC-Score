@@ -10,10 +10,12 @@ import { parseCellText } from '../grid/parse'
 import { DEFAULT_TAPE, LANDING_METRIC, isValidTapeReading, tapeReadingError, type TapeChoice } from './tapes'
 import {
   defaultRounds,
-  formatWorkingTimeLimit,
+  formatMaxFlightHint,
+  formatWindowHint,
+  perFlightCaps,
   phaseSetupInfo,
+  taskByRef,
   taskGridFor,
-  workingTimeView,
   type FlightRowSpec,
   type TaskGridSchema,
 } from '../grid/schema'
@@ -240,24 +242,18 @@ function perRoundParamsFor(definition: ClassDefinition, taskRef: string): Parame
   return paramsBoundAt(definition, 'PerRound').filter((p) => paramConsumedByTask(p, taskRef))
 }
 
-/** The task's effective working time in seconds — what the stopwatch split
- * divides at. A declared literal is used as-is; a parameter reference
- * resolves from the bound value (this round's scoped binding, then an
- * unscoped one), then the sheet's parameter input (declared default and
- * blank rules apply). A working time that resolves to nothing usable leaves
- * the split undefined — the capture step reports it per cell. */
-export function resolveWorkingTime(
-  timing: TaskTiming,
+/** Resolve a `{ param }` reference through the bound value (this round's
+ * scoped binding, then an unscoped one), then the sheet's parameter input
+ * (declared default and blank rules apply). Shared by working-time and
+ * max-flight resolution — one chain, never class-branched. */
+function resolveParamReference(
+  name: string,
   params: Parameter[],
   paramText: Record<string, string>,
   bindings: ParameterBindingFold[],
   phaseOrdinal: number,
   roundOrdinal: number,
 ): number | undefined {
-  const wt = workingTimeView(timing)
-  if (typeof wt.seconds === 'number') return wt.seconds
-  const name = wt.param
-  if (!name) return undefined
   const sameParam = (b: ParameterBindingFold): boolean => b.parameterName === name
   const scoped = bindings.find(
     (b) => sameParam(b) && b.phaseOrdinal === phaseOrdinal && b.roundOrdinal === roundOrdinal,
@@ -278,20 +274,98 @@ export function resolveWorkingTime(
   return n !== undefined && Number.isFinite(n) && n > 0 ? n : undefined
 }
 
-/** The round header's faint working-time hint ("10 minute max") — the same
- * value the stopwatch split divides at, resolved from the round's
- * per-round params plus the sheet's parameter text and declared defaults
- * only. The competition fold's parameter bindings are unavailable on the
- * static grid before Calculate, so scoped/unscoped bindings are skipped
- * here (documented choice): a working time that resolves to nothing usable
- * shows no hint. Display only (law 2); derived, never class-branched
- * (law 3). */
-export function roundWorkingTimeHint(
+/** Resolve one raw `NumberOrParam` (literal, numeric string, or `{ param }`)
+ * to seconds. Unresolvable (unbound param, no default, non-positive) yields
+ * undefined — the caller shows no hint and the engine still rules. */
+function resolveNumberOrParam(
+  raw: unknown,
+  params: Parameter[],
+  paramText: Record<string, string>,
+  bindings: ParameterBindingFold[],
+  phaseOrdinal: number,
+  roundOrdinal: number,
+): number | undefined {
+  if (raw === undefined || raw === null) return undefined
+  if (typeof raw === 'number') return Number.isFinite(raw) && raw > 0 ? raw : undefined
+  if (typeof raw === 'string') {
+    const n = Number(raw)
+    return Number.isFinite(n) && n > 0 ? n : undefined
+  }
+  if (typeof raw === 'object' && 'param' in raw) {
+    const name = (raw as { param: unknown }).param
+    if (typeof name !== 'string') return undefined
+    return resolveParamReference(name, params, paramText, bindings, phaseOrdinal, roundOrdinal)
+  }
+  return undefined
+}
+/** The task's effective working time in seconds — what the stopwatch split
+ * divides at. A declared literal is used as-is; a parameter reference
+ * resolves from the bound value (this round's scoped binding, then an
+ * unscoped one), then the sheet's parameter input (declared default and
+ * blank rules apply). A working time that resolves to nothing usable leaves
+ * the split undefined — the capture step reports it per cell. */
+export function resolveWorkingTime(
+  timing: TaskTiming,
+  params: Parameter[],
+  paramText: Record<string, string>,
+  bindings: ParameterBindingFold[],
+  phaseOrdinal: number,
+  roundOrdinal: number,
+): number | undefined {
+  return resolveNumberOrParam(
+    timing.workingTime as unknown,
+    params,
+    paramText,
+    bindings,
+    phaseOrdinal,
+    roundOrdinal,
+  )
+}
+
+/** The task's effective max flight in seconds — the most restrictive
+ * resolvable per-flight rate cap (`perFlightCaps`). Unresolvable caps are
+ * skipped; none resolvable yields undefined (no hint, engine still rules). */
+export function resolveMaxFlight(
+  taskRef: string,
+  definition: ClassDefinition,
+  params: Parameter[],
+  paramText: Record<string, string>,
+  bindings: ParameterBindingFold[],
+  phaseOrdinal: number,
+  roundOrdinal: number,
+): number | undefined {
+  const task = taskByRef(definition, taskRef)
+  if (!task) return undefined
+  let best: number | undefined
+  for (const cap of perFlightCaps(task)) {
+    const n = resolveNumberOrParam(cap as unknown, params, paramText, bindings, phaseOrdinal, roundOrdinal)
+    if (n !== undefined && (best === undefined || n < best)) best = n
+  }
+  return best
+}
+
+/** The round header's faint time hint — the working-time window plus the
+ * max flight, e.g. "10 min window · 2 min max" (F3K task G: 600 s window,
+ * 120 s per-flight rate cap). The window is the same value the stopwatch
+ * split divides at; the max is the most restrictive resolvable per-flight
+ * rate cap. Each side resolves from the round's per-round params plus the
+ * sheet's parameter text and declared defaults only — the competition
+ * fold's parameter bindings are unavailable on the static grid before
+ * Calculate, so scoped/unscoped bindings are skipped here (documented
+ * choice). A side that resolves to nothing usable shows nothing; neither
+ * side resolvable yields no hint. Display only (law 2); derived, never
+ * class-branched (law 3). */
+export function roundTimeHint(
+  definition: ClassDefinition,
   rg: SheetRoundGrid,
   paramText: Record<string, string>,
 ): string | undefined {
-  const seconds = resolveWorkingTime(rg.grid.timing, rg.perRoundParams, paramText, [], 0, rg.roundOrdinal)
-  return seconds === undefined ? undefined : formatWorkingTimeLimit(seconds)
+  const window = resolveWorkingTime(rg.grid.timing, rg.perRoundParams, paramText, [], 0, rg.roundOrdinal)
+  const max = resolveMaxFlight(rg.taskRef, definition, rg.perRoundParams, paramText, [], 0, rg.roundOrdinal)
+  const parts: string[] = []
+  if (window !== undefined) parts.push(formatWindowHint(window))
+  if (max !== undefined) parts.push(formatMaxFlightHint(max))
+  return parts.length > 0 ? parts.join(' · ') : undefined
 }
 
 export function sheetRoundGrids(

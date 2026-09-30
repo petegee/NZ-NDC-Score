@@ -10,8 +10,9 @@ import {
   parseParamInput,
   parsePenaltyText,
   penaltyOptions,
+  resolveMaxFlight,
   resolveWorkingTime,
-  roundWorkingTimeHint,
+  roundTimeHint,
   sheetCellKey,
   sheetCellParts,
   sheetPenaltyKey,
@@ -311,39 +312,69 @@ describe('resolveWorkingTime — what the stopwatch split divides at', () => {
   })
 })
 
-describe('roundWorkingTimeHint — the faint per-round time limit on the grid header', () => {
-  it('shows a literal working time (F5J task D: 600 → "10 minute max")', () => {
+describe('roundTimeHint — the faint per-round window + max flight on the grid header', () => {
+  it('shows window and max (F5J task D: 600 s window, 599 s per-flight cap)', () => {
     const [rg] = sheetRoundGrids(f5j, 1, {})
     expect(rg.taskRef).toBe('D')
-    expect(roundWorkingTimeHint(rg, {})).toBe('10 minute max')
+    expect(roundTimeHint(f5j, rg, {})).toBe('10 min window · 9:59 max')
   })
 
-  it('resolves a {param} working time through sheet text + default (F3K task B)', () => {
+  it('resolves {param} sides through sheet text + defaults (F3K task B)', () => {
     const [rg] = sheetRoundGrids(f3k, 1, { 0: 'B' })
     expect(rg.taskRef).toBe('B')
-    expect(roundWorkingTimeHint(rg, {})).toBe('10 minute max')
-    expect(roundWorkingTimeHint(rg, { 'workingTime.B': '420' })).toBe('7 minute max')
+    // workingTime.B default 600, maxFlight.B default 240.
+    expect(roundTimeHint(f3k, rg, {})).toBe('10 min window · 4 min max')
+    expect(roundTimeHint(f3k, rg, { 'workingTime.B': '420' })).toBe('7 min window · 4 min max')
+    expect(roundTimeHint(f3k, rg, { 'maxFlight.B': '180' })).toBe('10 min window · 3 min max')
   })
 
-  it('each catalogue round shows its own task limit', () => {
+  it('shows the headline case (F3K task G: 10 min window, 2 min max flight)', () => {
+    const [, , g] = sheetRoundGrids(f3k, 4, { 0: 'B', 1: 'D', 2: 'G', 3: 'H' })
+    expect(g.taskRef).toBe('G')
+    expect(roundTimeHint(f3k, g, {})).toBe('10 min window · 2 min max')
+  })
+
+  it('shows window only when the task has no per-flight cap (F3K task H targets)', () => {
+    const [, , , h] = sheetRoundGrids(f3k, 4, { 0: 'B', 1: 'D', 2: 'G', 3: 'H' })
+    expect(h.taskRef).toBe('H')
+    expect(roundTimeHint(f3k, h, {})).toBe('10 min window')
+  })
+
+  it('each catalogue round shows its own task limits', () => {
     const grids = sheetRoundGrids(f3k, 4, { 0: 'B', 1: 'D', 2: 'G', 3: 'H' })
     expect(grids.map((g) => g.taskRef)).toEqual(['B', 'D', 'G', 'H'])
-    // Only the B round consumes workingTime.B — the sheet text moves its
-    // hint alone; every other round keeps its own literal 600.
-    expect(grids.map((g) => roundWorkingTimeHint(g, { 'workingTime.B': '420' }))).toEqual([
-      '7 minute max',
-      '10 minute max',
-      '10 minute max',
-      '10 minute max',
+    // Only the B round consumes workingTime.B / maxFlight.B — the sheet text
+    // moves its hint alone; every other round keeps its own literals.
+    expect(grids.map((g) => roundTimeHint(f3k, g, { 'workingTime.B': '420' }))).toEqual([
+      '7 min window · 4 min max',
+      '10 min window · 5 min max',
+      '10 min window · 2 min max',
+      '10 min window',
     ])
   })
 
-  it('an unresolvable working time shows no hint', () => {
+  it('shows max only when the window is unresolvable but the cap resolves', () => {
     const [rg] = sheetRoundGrids(f3k, 1, { 0: 'B' })
-    const noDefault = {
+    const noWindowParam = {
       ...rg,
-      perRoundParams: [{ name: 'workingTime.B', kind: 'Number', boundAt: 'PerRound' } as never],
+      perRoundParams: rg.perRoundParams.filter((p) => p.name !== 'workingTime.B'),
     }
-    expect(roundWorkingTimeHint(noDefault, {})).toBeUndefined()
+    expect(roundTimeHint(f3k, noWindowParam, {})).toBe('4 min max')
+  })
+
+  it('shows no hint when neither side resolves', () => {
+    const [rg] = sheetRoundGrids(f3k, 1, { 0: 'B' })
+    const noParams = { ...rg, perRoundParams: [] }
+    expect(roundTimeHint(f3k, noParams, {})).toBeUndefined()
+  })
+
+  it('resolveMaxFlight takes the most restrictive resolvable cap', () => {
+    const [rgB] = sheetRoundGrids(f3k, 1, { 0: 'B' })
+    const params = rgB.perRoundParams
+    expect(resolveMaxFlight('G', f3k, params, {}, [], 0, 1)).toBe(120)
+    expect(resolveMaxFlight('H', f3k, params, {}, [], 0, 1)).toBeUndefined()
+    expect(resolveMaxFlight('B', f3k, params, {}, [], 0, 1)).toBe(240)
+    expect(resolveMaxFlight('B', f3k, params, { 'maxFlight.B': '180' }, [], 0, 1)).toBe(180)
+    expect(resolveMaxFlight('ZZZ', f3k, params, {}, [], 0, 1)).toBeUndefined()
   })
 })

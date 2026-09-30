@@ -1036,15 +1036,16 @@ describe('SheetPage', () => {
       await waitFor(() => expect(screen.getByText(/Thermal Duration Gliders/)).toBeInTheDocument())
       await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f5j-ndc')
       // Literal 600 on every round header — the stub class draws 2 rounds.
-      await waitFor(() => expect(screen.getAllByText('10 minute max')).toHaveLength(2))
-      for (const hint of screen.getAllByText('10 minute max')) {
+      // The stub tasks score with no per-flight cap, so the hint is window-only.
+      await waitFor(() => expect(screen.getAllByText('10 min window')).toHaveLength(2))
+      for (const hint of screen.getAllByText('10 min window')) {
         expect(hint).toHaveClass('target-label')
         expect(hint.closest('th')?.textContent).toMatch(/Round \d/)
       }
 
       // The F3K stub declares a literal 300: four rounds, one hint each.
       await user.selectOptions(screen.getByLabelText(/Class/), 'hash-f3k-v2')
-      await waitFor(() => expect(screen.getAllByText('5 minute max')).toHaveLength(4))
+      await waitFor(() => expect(screen.getAllByText('5 min window')).toHaveLength(4))
     } finally {
       vi.unstubAllGlobals()
     }
@@ -1111,15 +1112,16 @@ describe('SheetPage', () => {
       render(<SheetPage base="http://api.test" />)
       await waitFor(() => expect(screen.getByText(/Param Time/)).toBeInTheDocument())
       await user.selectOptions(screen.getByLabelText(/Class/), 'hash-param')
-      // Declared default 600 until the organiser types.
-      await waitFor(() => expect(screen.getByText('10 minute max')).toBeInTheDocument())
+      // Declared default 600 until the organiser types (no score caps in the
+      // stub task, so the hint is window-only).
+      await waitFor(() => expect(screen.getByText('10 min window')).toBeInTheDocument())
 
       await user.click(screen.getByRole('button', { name: '+' }))
       const paramInput = screen.getByLabelText(/workingTime\.B/)
       await user.clear(paramInput)
       await user.type(paramInput, '420')
-      await waitFor(() => expect(screen.getByText('7 minute max')).toBeInTheDocument())
-      expect(screen.queryByText('10 minute max')).not.toBeInTheDocument()
+      await waitFor(() => expect(screen.getByText('7 min window')).toBeInTheDocument())
+      expect(screen.queryByText('10 min window')).not.toBeInTheDocument()
     } finally {
       vi.unstubAllGlobals()
     }
@@ -1648,7 +1650,43 @@ describe('SheetPage', () => {
       }) as unknown as typeof fetch
     }
 
-    it('warns pre-Calculate while the named field is short, and clears when it is met', async () => {
+    it('reset returns the sheet to the pre-warning state', async () => {
+      const user = userEvent.setup()
+      vi.stubGlobal('fetch', stubMinField())
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+      try {
+        render(<SheetPage base="http://api.test" />)
+        await waitFor(() => expect(screen.getByText(/Test Class/)).toBeInTheDocument())
+        await user.selectOptions(screen.getByLabelText(/Class/), 'hash-minfield')
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Calculate' })).toBeInTheDocument())
+
+        await user.click(screen.getByRole('button', { name: 'Calculate' }))
+        await screen.findByRole('note', { name: 'Field too small for the draw' })
+
+        await user.click(screen.getByRole('button', { name: 'Reset' }))
+        await waitFor(() =>
+          expect(
+            screen.queryByRole('note', { name: 'Field too small for the draw' }),
+          ).not.toBeInTheDocument(),
+        )
+
+        // Re-selecting the class is a fresh start too — still no warnings
+        // until the next Calculate press.
+        await user.selectOptions(screen.getByLabelText(/Class/), 'hash-minfield')
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Calculate' })).toBeInTheDocument())
+        expect(
+          screen.queryByRole('note', { name: 'Field too small for the draw' }),
+        ).not.toBeInTheDocument()
+
+        await user.click(screen.getByRole('button', { name: 'Calculate' }))
+        await screen.findByRole('note', { name: 'Field too small for the draw' })
+      } finally {
+        confirm.mockRestore()
+        vi.unstubAllGlobals()
+      }
+    })
+
+    it('stays hidden until Calculate is pressed, then warns while the named field is short', async () => {
       const user = userEvent.setup()
       vi.stubGlobal('fetch', stubMinField())
       try {
@@ -1656,6 +1694,14 @@ describe('SheetPage', () => {
         await waitFor(() => expect(screen.getByText(/Test Class/)).toBeInTheDocument())
         await user.selectOptions(screen.getByLabelText(/Class/), 'hash-minfield')
 
+        // A fresh class with no pilots yet is the starting point, not a
+        // warning — nothing shows before the first Calculate press.
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Calculate' })).toBeInTheDocument())
+        expect(
+          screen.queryByRole('note', { name: 'Field too small for the draw' }),
+        ).not.toBeInTheDocument()
+
+        await user.click(screen.getByRole('button', { name: 'Calculate' }))
         const banner = await screen.findByRole('note', { name: 'Field too small for the draw' })
         expect(banner).toHaveTextContent(
           'Round 1 (B) needs at least 5 pilots to draw — the sheet names 0. Add pilots or the draw will be refused.',

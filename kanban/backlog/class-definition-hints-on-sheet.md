@@ -22,18 +22,26 @@ adopted class definition (law 3 — no class branches anywhere):
    translates the `drawPhase.fieldTooSmall` ProblemDetails into organiser
    language when it does arrive.
 2. **Task time limits on the grid.** The organiser wants "2 minute max"
-   visible where the numbers are typed. Per-task `TaskTiming.workingTime`
-   already exists in the definition (`src/api/schema.d.ts:2743-2748`), and
-   `workingTimeView` already parses it (`src/grid/schema.ts:302-312`) with full
-   param resolution (`resolveWorkingTime`, `src/sheet/sheet.ts:248-278` —
-   scoped binding → unscoped → sheet text → default, the same value the
-   stopwatch split divides at). Render as a faint hint on the task's round
-   header / column head (`src/sheet/SheetPage.tsx:653-706`) — same pattern as
-   the existing `targetLabel` (`SheetPage.tsx:676`) and `EXACT_ZERO_HINT`
-   placeholder (`SheetPage.tsx:756`) hints (`single-sheet-calculate.md` WI-3).
-   Both literal (`"workingTime": 600`) and param (`{"param": "workingTime.B"}`)
-   shapes occur on the wire — see `85c-nz-f5j-ndc.json:202` and
-   `85b-nz-f3k-ndc.json:196-198`.
+   visible where the numbers are typed — and "10 minute max" was the wrong
+   label for it: 600 s on F3K task G is the working-time *window*, while the
+   2 minutes that matters is the per-flight score cap (120 s). Each round
+   header now shows both, derived definition-driven (law 3):
+   `"10 min window · 2 min max"` — window from per-task
+   `TaskTiming.workingTime` (`src/api/schema.d.ts:2743-2748`, parsed by
+   `workingTimeView`, `src/grid/schema.ts:302-312`, resolved by
+   `resolveWorkingTime`, `src/sheet/sheet.ts`), max flight from the most
+   restrictive resolvable per-flight rate cap (`ScoreTermRateTerm` with
+   explicit `capScope: PerFlight` across `score` + `scoreNormalised`,
+   conditional-aware — `perFlightCaps`, `src/grid/schema.ts`; resolved by
+   `resolveMaxFlight`, `src/sheet/sheet.ts`). Both sides share one
+   `NumberOrParam` chain (literal / numeric string / `{ param }` via scoped
+   binding → unscoped → sheet text → declared default); either side
+   unresolvable renders nothing for that side. Rendered as one faint hint on
+   the round header (`src/sheet/SheetPage.tsx` thead) — same pattern as the
+   existing `targetLabel` and `EXACT_ZERO_HINT` hints
+   (`single-sheet-calculate.md` WI-3). Tasks without a per-flight cap (F3K H
+   targets) show window only; a missing `capScope` is never treated as
+   per-flight (a PerTask cap is a score total, not a max flight).
 
 Feedback verbatim:
 
@@ -103,18 +111,25 @@ client-side.
   ProblemDetails is the truth); the friendly line supplements, never replaces.
 - Check whether other catalogue tasks (H, poker) need the same hint shape so
   the rendering stays definition-driven.
-- Working-time hint formatting: whole minutes as `"{m} minute max"`
-  (`"2 minute max"` per the verbatim), sub-minute remainders as
-  `"M:SS max"` (reuse `formatClock`); unresolvable working time renders
-  nothing.
+- Working-time hint formatting: window as `"10 min window"` (whole minutes;
+  sub-minute remainders as `"M:SS window"` via `formatClock`), max flight as
+  `"2 min max"` / `"M:SS max"`; combined `"10 min window · 2 min max"`.
+  Either side unresolvable renders nothing for that side. Both literal
+  (`"workingTime": 600`, `"cap": 120`) and param
+  (`{"param": "workingTime.B"}`, `{"param": "maxFlight.B"}`) shapes occur on
+  the wire — see `85c-nz-f5j-ndc.json:202` and `85b-nz-f3k-ndc.json:196-198`.
 
 ## Done when
 
-- Single-pilot sheet shows the per-round organiser-language warning before
-  Calculate (e.g. F3K task B: `Round 1 (B) needs at least 5 pilots to draw —
-  the sheet names 1.`); the fieldTooSmall refusal (if reached) renders the
-  friendly prefix with the verbatim `code: detail` retained underneath.
-- Every round whose task has a resolvable working time shows its limit on the
-  grid round/column header (literal and `{ param }` shapes, verified against
-  F3K + F5J fixtures); unresolvable working time shows no hint.
+- Single-pilot sheet shows the per-round organiser-language warning after the
+  first Calculate press (never on a freshly chosen class — an empty sheet is
+  the starting point, not a warning; e.g. F3K task B: `Round 1 (B) needs at
+  least 5 pilots to draw — the sheet names 1.`); the fieldTooSmall refusal
+  (if reached) renders the friendly prefix with the verbatim `code: detail`
+  retained underneath.
+- Every round shows its window and, where the task declares one, its max
+  flight on the grid round header (e.g. F3K task G: `10 min window · 2 min
+  max`; F3K task H targets: `10 min window` only; literal and `{ param }`
+  shapes verified against F3K + F5J fixtures); an unresolvable side shows
+  nothing for that side.
 - No per-class branches (law 3).
