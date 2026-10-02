@@ -12,15 +12,18 @@ import type {
   CompetitionSummary,
   CompetitionView,
   CreateCompetition,
+  CurrentUserView,
   EntrySummary,
   GroupScore,
   Person,
+  PersonRoleName,
   PersonSummary,
   RegisterPerson,
   TaskRoundRecordingView,
   PenaltyScope,
   ReflightRole,
 } from './types'
+import { personRoleValue } from './types'
 
 export interface OpenEntryInput {
   competitionRef: string
@@ -78,6 +81,9 @@ export interface Api {
   renamePerson(personId: string, name: string): Promise<ApiResult<string>>
   findPeople(query: { email?: string; name?: string }): Promise<ApiResult<PersonSummary[]>>
   getPerson(id: string): Promise<ApiResult<Person>>
+  whoAmI(): Promise<ApiResult<CurrentUserView>>
+  grantRole(personId: string, role: PersonRoleName): Promise<ApiResult<string>>
+  revokeRole(personId: string, role: PersonRoleName): Promise<ApiResult<string>>
 
   findClassDefinitions(query: { name?: string; activeOnly?: boolean }): Promise<
     ApiResult<ClassDefinitionSummary[]>
@@ -183,6 +189,19 @@ export function createApi(base: string, fetchImpl: FetchLike = fetch): Api {
     findPeople: async (query) =>
       call('GET', '/people', { query: { email: query.email, name: query.name } }),
     getPerson: async (personId) => call('GET', '/person', { query: { id: personId } }),
+    whoAmI: async () => call('GET', '/who-am-i'),
+    grantRole: async (personId, role) =>
+      unwrapId(
+        await call('POST', '/grant-role', {
+          body: { personRef: id(personId), role: personRoleValue[role] },
+        }),
+      ),
+    revokeRole: async (personId, role) =>
+      unwrapId(
+        await call('POST', '/revoke-role', {
+          body: { personRef: id(personId), role: personRoleValue[role] },
+        }),
+      ),
 
     findClassDefinitions: async (query) =>
       call('GET', '/class-definitions', {

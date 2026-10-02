@@ -280,6 +280,19 @@ export class FakeSoarscore {
           warnings: [],
         }
       },
+      // Role administration is organiser UI (PeoplePage), never part of the
+      // Calculate orchestration — the fake refuses it like an unauthorised
+      // caller would see it refused.
+      whoAmI: async () => ({
+        value: { isAuthenticated: false, personId: null, roles: [], name: null },
+        warnings: [],
+      }),
+      grantRole: async () => {
+        throw new ApiError(403, 'auth.notAuthorised', 'Organiser role required.', [])
+      },
+      revokeRole: async () => {
+        throw new ApiError(403, 'auth.notAuthorised', 'Organiser role required.', [])
+      },
 
       findCompetitions: async (query) => ({
         value: this.competitions

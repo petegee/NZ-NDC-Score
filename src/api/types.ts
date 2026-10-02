@@ -61,7 +61,7 @@ export interface PersonSummary {
   phone?: string | null
   homeCity?: string | null
   clubName?: string | null
-  roles: string[]
+  roles: (string | number)[]
 }
 
 export interface Person {
@@ -69,7 +69,31 @@ export interface Person {
   name: string
   contact: ContactDetails
   club?: ClubAffiliation | null
-  roles: string[]
+  roles: (string | number)[]
+}
+
+export type PersonRoleName = 'Competitor' | 'Organiser'
+
+/** PersonRole crosses the wire as its numeric value (Competitor = 0,
+ * Organiser = 1) — the API has no string-enum converter, so roles read back
+ * as numbers too. The label helper accepts either shape. */
+export const personRoleValue: Record<PersonRoleName, number> = { Competitor: 0, Organiser: 1 }
+
+export function personRoleLabel(role: string | number): string {
+  if (role === 1 || role === 'Organiser') return 'Organiser'
+  if (role === 0 || role === 'Competitor') return 'Competitor'
+  return String(role)
+}
+
+export function holdsRole(roles: (string | number)[], name: PersonRoleName): boolean {
+  return roles.some((r) => r === personRoleValue[name] || r === name)
+}
+
+export interface CurrentUserView {
+  isAuthenticated: boolean
+  personId: Id | null
+  roles: (string | number)[]
+  name: string | null
 }
 
 export interface ClassDefinitionSummary {
