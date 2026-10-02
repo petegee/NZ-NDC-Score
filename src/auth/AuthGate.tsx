@@ -8,12 +8,14 @@ type LinkState = { kind: 'pending' } | { kind: 'linked' } | { kind: 'failed'; me
 // POST /link-sign-in so the Soarscore API binds this login to a person (and
 // grants Organiser to bootstrap emails) before any Calculate runs. Every API
 // call after that carries the access token via the fetch handed to children.
+// The signed-in display name is handed to children too so the sheet can
+// default the Contest Director field without overwriting a typed value.
 export function AuthGate({
   base,
   children,
 }: {
   base: string
-  children: (fetchImpl: FetchLike) => ReactNode
+  children: (fetchImpl: FetchLike, userName: string) => ReactNode
 }) {
   const { isLoading, isAuthenticated, error, user, loginWithRedirect, logout, getAccessTokenSilently } =
     useAuth0()
@@ -81,7 +83,10 @@ export function AuthGate({
           Sign out
         </button>
       </div>
-      {children(authedFetch)}
+      {children(
+        authedFetch,
+        user?.name ?? user?.nickname ?? (user as { preferred_username?: string })?.preferred_username ?? user?.email ?? '',
+      )}
     </>
   )
 }

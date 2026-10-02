@@ -46,7 +46,15 @@ function errorText(error: unknown): string {
   return String((error as Error)?.message ?? error)
 }
 
-export function SheetPage({ base, fetchImpl }: { base: string; fetchImpl?: FetchLike }) {
+export function SheetPage({
+  base,
+  fetchImpl,
+  cdDefault = '',
+}: {
+  base: string
+  fetchImpl?: FetchLike
+  cdDefault?: string
+}) {
   const api = useMemo(() => createApi(base, fetchImpl), [base, fetchImpl])
   const [state, dispatch] = useReducer(sheetReducer, undefined, loadSheet)
   const [classList, setClassList] = useState<ClassDefinitionSummary[] | null>(null)
@@ -99,6 +107,15 @@ export function SheetPage({ base, fetchImpl }: { base: string; fetchImpl?: Fetch
   useEffect(() => {
     saveSheet(state)
   }, [state])
+
+  // Default the Contest Director to the signed-in user. Only fills a blank
+  // field — a typed name, including one restored from a saved draft, is
+  // never overwritten. Re-fills after Reset (which blanks the field).
+  useEffect(() => {
+    if (cdDefault.trim() !== '' && state.cdName.trim() === '') {
+      dispatch({ type: 'setField', field: 'cdName', value: cdDefault })
+    }
+  }, [cdDefault, state.cdName])
 
   useEffect(() => {
     api
