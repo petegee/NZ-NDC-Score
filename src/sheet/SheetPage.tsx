@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { createApi } from '../api/client'
+import type { FetchLike } from '../api/wire'
 import type { ClassDefinitionSummary } from '../api/types'
 import { isNdcClass, latestPerClass } from './classes'
 import { formatValue } from '../grid/parse'
@@ -45,8 +46,8 @@ function errorText(error: unknown): string {
   return String((error as Error)?.message ?? error)
 }
 
-export function SheetPage({ base }: { base: string }) {
-  const api = useMemo(() => createApi(base), [base])
+export function SheetPage({ base, fetchImpl }: { base: string; fetchImpl?: FetchLike }) {
+  const api = useMemo(() => createApi(base, fetchImpl), [base, fetchImpl])
   const [state, dispatch] = useReducer(sheetReducer, undefined, loadSheet)
   const [classList, setClassList] = useState<ClassDefinitionSummary[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)

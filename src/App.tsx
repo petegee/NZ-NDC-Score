@@ -1,7 +1,9 @@
 import { SheetPage } from './sheet/SheetPage'
+import { AuthGate } from './auth/AuthGate'
 
-function App({ base }: { base: string }) {
-  return <SheetPage base={base} />
+function App({ base, auth }: { base: string; auth: boolean }) {
+  if (!auth) return <SheetPage base={base} />
+  return <AuthGate base={base}>{(fetchImpl) => <SheetPage base={base} fetchImpl={fetchImpl} />}</AuthGate>
 }
 
 export default App

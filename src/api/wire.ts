@@ -117,8 +117,7 @@ export async function request<T>(
   opts: { query?: QueryParams; body?: unknown } = {},
 ): Promise<ApiResult<T>> {
   const url = `${base}${path}${buildQuery(opts.query ?? {})}`
-  // Single attachment point for a future bearer header: add
-  // headers.set('Authorization', `Bearer ${token}`) here when sign-in lands.
+  // The bearer token rides in fetchImpl (src/auth/AuthGate.tsx), not here.
   const headers: Record<string, string> = {}
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json'
   const res = await fetchImpl(url, {

@@ -10,6 +10,12 @@ primary_region = 'syd'
   # Soarscore API (CORS for this origin is configured on the service via
   # SOARSCORE_CORS_ORIGINS).
   VITE_API_BASE = 'https://soarscore2-quiet-shadow-5419.fly.dev'
+  # Auth0 SPA client — public values (the SPA has no secret). AUDIENCE must
+  # equal the API's Soarscore__Auth__Audience Fly secret; until it is set the
+  # app shows a configuration error naming it.
+  VITE_AUTH0_DOMAIN = 'dev-do84ownglbybm3wq.us.auth0.com'
+  VITE_AUTH0_CLIENT_ID = 'NnElGNDnDonRvC9mKvzwXisbnkkngJ1N'
+  # VITE_AUTH0_AUDIENCE = ''
 
 [http_service]
   internal_port = 8080
