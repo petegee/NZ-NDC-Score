@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="NdcScore">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a7a2a"/>
+      <stop offset="1" stop-color="#124a12"/>
+    </linearGradient>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="url(#sky)"/>
+    <!-- scoresheet grid -->
+    <g stroke="#ffffff" stroke-opacity="0.16" stroke-width="10" fill="none">
+      <path d="M0 300H512M0 370H512M0 440H512"/>
+      <path d="M150 300V512M270 300V512M390 300V512"/>
+    </g>
+    <path d="M0 300H512" stroke="#dcf1dc" stroke-opacity="0.45" stroke-width="10"/>
+  </g>
+  <!-- sailplane planform, climbing -->
+  <g transform="translate(256 200) rotate(24) translate(-256 -256)" fill="#ffffff">
+    <path d="M256 128C264 128 270 150 270 196L264 362C262 372 250 372 248 362L242 196C242 150 248 128 256 128Z"/>
+    <path d="M262 198L470 214L466 230L262 240Z"/>
+    <path d="M250 198L42 214L46 230L250 240Z"/>
+    <path d="M256 352L338 358L336 372L256 374L176 372L174 358Z"/>
+  </g>
+</svg>
