@@ -15,7 +15,7 @@ primary_region = 'syd'
   # app shows a configuration error naming it.
   VITE_AUTH0_DOMAIN = 'dev-do84ownglbybm3wq.us.auth0.com'
   VITE_AUTH0_CLIENT_ID = 'NnElGNDnDonRvC9mKvzwXisbnkkngJ1N'
-  # VITE_AUTH0_AUDIENCE = ''
+  VITE_AUTH0_AUDIENCE = 'soarscore2-quiet-shadow-5419'
 
 [http_service]
   internal_port = 8080
