@@ -18,7 +18,7 @@ interface PersonRow {
 }
 
 /** Stub fetch routing on path, recording every call for body assertions. */
-function stubFetch(whoAmIroles: (string | number)[], people: PersonRow[]) {
+function stubFetch(whoAmIroles: (string | number)[], people: PersonRow[], registerStatus = 200) {
   const calls: { url: string; body: unknown }[] = []
   const impl: FetchLike = (async (input, init) => {
     const url = String(input)
@@ -34,6 +34,20 @@ function stubFetch(whoAmIroles: (string | number)[], people: PersonRow[]) {
       })
     }
     if (url.includes('/people')) return jsonResponse(people)
+    if (url.endsWith('/register-person')) {
+      if (registerStatus !== 200) {
+        return jsonResponse(
+          {
+            type: 'about:blank',
+            title: 'eventStore.uniqueConstraintViolation',
+            status: 409,
+            detail: 'duplicate email',
+          },
+          409,
+        )
+      }
+      return jsonResponse({ value: '44444444-4444-4444-8444-444444444444' })
+    }
     if (url.endsWith('/grant-role') || url.endsWith('/revoke-role')) {
       return jsonResponse({ value: '22222222-2222-4222-8222-222222222222' })
     }
@@ -97,5 +111,53 @@ describe('PeoplePage', () => {
     render(<PeoplePage base="https://api.example" fetchImpl={impl} />)
 
     expect(await screen.findByRole('button', { name: 'Search' })).toBeDefined()
+  })
+
+  it('registers a new person and shows them for granting', async () => {
+    const newcomer: PersonRow = {
+      id: { value: '44444444-4444-4444-8444-444444444444' },
+      name: 'New Tester',
+      email: 'new@example.org',
+      roles: [],
+    }
+    const { calls, impl } = stubFetch([1], [newcomer])
+    render(<PeoplePage base="https://api.example" fetchImpl={impl} />)
+
+    await screen.findByRole('button', { name: 'Search' })
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'New Tester' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('new.tester@example.org'), {
+      target: { value: 'new@example.org' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add person' }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Registered New Tester/)).toBeDefined()
+    })
+    expect(calls.find((c) => c.url.endsWith('/register-person'))?.body).toEqual({
+      name: 'New Tester',
+      contact: { email: 'new@example.org' },
+      club: null,
+    })
+    expect(await screen.findByRole('button', { name: 'Grant' })).toBeDefined()
+  })
+
+  it('treats a duplicate email as already registered', async () => {
+    const { impl } = stubFetch([1], [tama], 409)
+    render(<PeoplePage base="https://api.example" fetchImpl={impl} />)
+
+    await screen.findByRole('button', { name: 'Search' })
+    fireEvent.change(screen.getByPlaceholderText('Full name'), {
+      target: { value: 'Tama' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('new.tester@example.org'), {
+      target: { value: 'tama@example.org' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add person' }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/already registered/)).toBeDefined()
+    })
   })
 })
