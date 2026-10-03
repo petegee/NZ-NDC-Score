@@ -70,6 +70,13 @@ main.auth-page {
   gap: 0.75rem;
 }
 
+main.auth-page h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+}
+
 .session-bar {
   max-width: 84rem;
   margin: 0 auto;
@@ -84,10 +91,18 @@ main.auth-page {
 
 /* Page head: title plus a one-line lede. */
 .page-head h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   margin: 0;
   font-size: 1.55rem;
   font-weight: 700;
   letter-spacing: -0.015em;
+}
+
+.brand-logo {
+  flex: none;
+  border-radius: 8px;
 }
 
 .page-head .lede {

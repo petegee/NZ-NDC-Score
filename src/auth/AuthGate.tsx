@@ -51,7 +51,10 @@ export function AuthGate({
   if (!isAuthenticated) {
     return (
       <main className="auth-page">
-        <h1>NDC Scoresheet</h1>
+        <h1>
+          <img className="brand-logo" src="/logo.svg" alt="" width={36} height={36} />
+          NDC Scoresheet
+        </h1>
         <p className="lede">Sign in to enter and score your contest.</p>
         {error && <p className="error-bar">{error.message}</p>}
         <button type="button" className="calculate" onClick={() => loginWithRedirect()}>
@@ -66,7 +69,10 @@ export function AuthGate({
   if (link.kind === 'failed') {
     return (
       <main className="auth-page">
-        <h1>NDC Scoresheet</h1>
+        <h1>
+          <img className="brand-logo" src="/logo.svg" alt="" width={36} height={36} />
+          NDC Scoresheet
+        </h1>
         <p className="error-bar">Sign-in was not accepted by Soarscore — {link.message}</p>
         <button type="button" onClick={signOut}>
           Sign out

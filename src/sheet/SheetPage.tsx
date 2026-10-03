@@ -334,7 +334,10 @@ export function SheetPage({
   return (
     <main className="sheet-page">
       <header className="page-head">
-        <h1>NDC Scoresheet</h1>
+        <h1>
+          <img className="brand-logo" src="/logo.svg" alt="" width={36} height={36} />
+          NDC Scoresheet
+        </h1>
         <p className="lede">
           Type anywhere, any time. <strong>Calculate</strong> scores the whole sheet — after that,
           every edit re-scores automatically.
