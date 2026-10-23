@@ -18,7 +18,23 @@ ARG VITE_AUTH0_AUDIENCE
 RUN npm run build
 
 FROM nginx:1.29-alpine AS final
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# The CSP names the API and Auth0 origins, so it is generated from the same
+# build args Vite inlines — the policy cannot drift from the real origins.
+ARG VITE_API_BASE
+ARG VITE_AUTH0_DOMAIN
+COPY nginx.conf.template /etc/nginx/conf.d/default.conf
+COPY security-headers.inc.template /tmp/security-headers.inc.template
+RUN set -eu; \
+    api="${VITE_API_BASE%/}"; \
+    CSP_CONNECT="$api"; CSP_FRAME="'none'"; \
+    if [ -n "${VITE_AUTH0_DOMAIN:-}" ]; then \
+      CSP_CONNECT="$CSP_CONNECT https://${VITE_AUTH0_DOMAIN}"; \
+      CSP_FRAME="https://${VITE_AUTH0_DOMAIN}"; \
+    fi; \
+    export CSP_CONNECT CSP_FRAME; \
+    envsubst '${CSP_CONNECT} ${CSP_FRAME}' < /tmp/security-headers.inc.template \
+      > /etc/nginx/conf.d/security-headers.inc; \
+    rm /tmp/security-headers.inc.template
 COPY --from=build /src/dist/ /usr/share/nginx/html/
 
 EXPOSE 8080

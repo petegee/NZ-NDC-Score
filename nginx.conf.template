@@ -1,0 +1,26 @@
+server {
+    listen 8080;
+    server_tokens off;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Security headers. Repeated in each location below because nginx does not
+    # inherit add_header into a location that sets its own. CSP origins are
+    # substituted from the same build args that Vite inlines (see Dockerfile).
+    include /etc/nginx/conf.d/security-headers.inc;
+
+    # Vite emits content-hashed assets — cache them forever
+    location /assets/ {
+        include /etc/nginx/conf.d/security-headers.inc;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
+    # The shell must revalidate so a deploy (and any CSP change) lands promptly
+    location / {
+        include /etc/nginx/conf.d/security-headers.inc;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri /index.html;
+    }
+}
